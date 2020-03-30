@@ -30,6 +30,7 @@ import constants as CN
 from read_load_xml import XmlLoadFile
 from read_data_files import ReadDataFiles
 from run_sql import RunSql
+from run_cb import RunCB
 from write_file_sql import WriteFileSql
 from write_stat_sql import WriteStatSql
 from write_mode_sql import WriteModeSql
@@ -117,7 +118,6 @@ def main():
     #  Write the data to a database
     #
     try:
-
         if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
             sql_run = RunSql()
             sql_run.sql_on(xml_loadfile.connection)
@@ -168,7 +168,12 @@ def main():
 
             if sql_run.conn.open:
                 sql_run.sql_off(sql_run.conn, sql_run.cur)
-
+        else:
+            if xml_loadfile.connection['db_management_system'] in CN.CB:
+                cb_run = RunCB()
+                #write_documents(file_data.stat_data)
+                logging.info("writing cb documents")
+                cb_run.write_cb(file_data)
     except (RuntimeError, TypeError, NameError, KeyError):
         logging.error("*** %s occurred in Main writing data ***", sys.exc_info()[0])
         sys.exit("*** Error when writing data to database")
