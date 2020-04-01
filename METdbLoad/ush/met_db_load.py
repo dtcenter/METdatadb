@@ -171,6 +171,9 @@ def main():
         else:
             if xml_loadfile.connection['db_management_system'] in CN.CB:
                 cb_run = RunCB()
+                # establish bucket connection
+                logging.info("establishing cb bucket connection")
+                cb_run.cb_on(xml_loadfile.connection)
                 #write_documents(file_data.stat_data)
                 logging.info("writing cb documents")
                 cb_run.write_cb(file_data)
@@ -179,9 +182,13 @@ def main():
         sys.exit("*** Error when writing data to database")
 
     finally:
-        if sql_run.conn.open:
-            sql_run.sql_off(sql_run.conn, sql_run.cur)
-
+        if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
+            if sql_run.conn.open:
+                sql_run.sql_off(sql_run.conn, sql_run.cur)
+        else:
+            if xml_loadfile.connection['db_management_system'] in CN.CB:
+                logging.info("cleaning up after coucbase")
+                cb_run.cb_off(cb_run.conn)
     load_time_end = time.perf_counter()
     load_time = timedelta(seconds=load_time_end - load_time_start)
 
