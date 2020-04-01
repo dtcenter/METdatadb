@@ -66,7 +66,7 @@ class WriteModeSql:
             # At first, we do not know if the headers already exist, so we have no keys
             mode_headers[CN.MODE_HEADER_ID] = CN.NO_KEY
 
-            # get the next valid mode id. Set it to zero (first valid id) if no records yet
+            # get the next valid mode header id. Set it to zero (first valid id) if no records yet
             next_header_id = sql_met.get_next_id(CN.MODE_HEADER, CN.MODE_HEADER_ID, sql_cur)
 
             # if the flag is set to check for duplicate headers, get ids from existing headers
@@ -80,10 +80,13 @@ class WriteModeSql:
                     # If you find a match, put the key into the mode_headers dataframe
                     if sql_cur.rowcount > 0:
                         mode_headers.loc[mode_headers.index[row_num], CN.MODE_HEADER_ID] = result[0]
-
-            # For new headers add the next id to the row number/index to make a new key
-            mode_headers.loc[mode_headers.mode_header_id == CN.NO_KEY, CN.MODE_HEADER_ID] = \
-                mode_headers.index + next_header_id
+                    else:
+                        mode_headers.loc[mode_headers.index[row_num], CN.MODE_HEADER_ID] = \
+                            row_num + next_header_id
+            else:
+                # When all new headers, add the next id to the row number/index to make a new key
+                mode_headers.loc[mode_headers.mode_header_id == CN.NO_KEY, CN.MODE_HEADER_ID] = \
+                    mode_headers.index + next_header_id
 
             # get just the new headers with their keys
             new_headers = mode_headers[mode_headers[CN.MODE_HEADER_ID] > (next_header_id - 1)]

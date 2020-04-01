@@ -52,6 +52,11 @@ class WriteFileSql:
             # Write Data Files
             # --------------------
 
+            # get next valid data file id. data files start counting from 1
+            next_file_id = self.sql_met.get_next_id(CN.DATA_FILE, CN.DATA_FILE_ID, sql_cur)
+            if next_file_id == 0:
+                next_file_id = 1
+
             # write out records for data files, but first:
             # check for duplicates if flag on - delete if found
             for row_num, file_line in data_files.iterrows():
@@ -80,6 +85,10 @@ class WriteFileSql:
                     else:
                         # With duplicate files allowed, save the existing id for the file
                         data_files.loc[data_files.index[row_num], CN.DATA_FILE_ID] = result[0]
+                # Not a duplicate - give it a new id
+                else:
+                    data_files.loc[data_files.index[row_num], CN.DATA_FILE_ID] = \
+                        row_num + next_file_id
 
             # end for row_num, file_line
 
@@ -89,15 +98,6 @@ class WriteFileSql:
                 stat_data.reset_index(drop=True, inplace=True)
                 mode_cts_data.reset_index(drop=True, inplace=True)
                 mode_obj_data.reset_index(drop=True, inplace=True)
-
-                # get next valid data file id. data files start counting from 1
-                next_file_id = self.sql_met.get_next_id(CN.DATA_FILE, CN.DATA_FILE_ID, sql_cur)
-                if next_file_id == 0:
-                    next_file_id = 1
-
-                # For new files add the next id to the row number/index to make a new key
-                data_files.loc[data_files.data_file_id == CN.NO_KEY, CN.DATA_FILE_ID] = \
-                    data_files.index + next_file_id
 
                 # Replace the temporary id value with the actual index in the line data
                 for row_num, row in data_files.iterrows():

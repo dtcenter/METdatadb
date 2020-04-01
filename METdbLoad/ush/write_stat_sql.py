@@ -59,7 +59,7 @@ class WriteStatSql:
             # At first, we do not know if the headers already exist, so we have no keys
             stat_headers[CN.STAT_HEADER_ID] = CN.NO_KEY
 
-            # get the next valid header id. Set it to zero (first valid id) if no records yet
+            # get the next valid stat header id. Set it to zero (first valid id) if no records yet
             next_header_id = sql_met.get_next_id(CN.STAT_HEADER, CN.STAT_HEADER_ID, sql_cur)
 
             # if the flag is set to check for duplicate headers, get ids from existing headers
@@ -73,10 +73,13 @@ class WriteStatSql:
                     # If you find a match, put the key into the stat_headers dataframe
                     if sql_cur.rowcount > 0:
                         stat_headers.loc[stat_headers.index[row_num], CN.STAT_HEADER_ID] = result[0]
-
-            # For new headers add the next id to the row number/index to make a new key
-            stat_headers.loc[stat_headers.stat_header_id == CN.NO_KEY, CN.STAT_HEADER_ID] = \
-                stat_headers.index + next_header_id
+                    else:
+                        stat_headers.loc[stat_headers.index[row_num], CN.STAT_HEADER_ID] = \
+                        row_num + next_header_id
+            else:
+                # When all new headers, add the next id to the row number/index to make a new key
+                stat_headers.loc[stat_headers.stat_header_id == CN.NO_KEY, CN.STAT_HEADER_ID] = \
+                    stat_headers.index + next_header_id
 
             # get just the new headers with their keys
             new_headers = stat_headers[stat_headers[CN.STAT_HEADER_ID] > (next_header_id - 1)]
