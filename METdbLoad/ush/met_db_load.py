@@ -187,7 +187,6 @@ def main():
                 sql_run.sql_off(sql_run.conn, sql_run.cur)
         else:
             if xml_loadfile.connection['db_management_system'] in CN.CB:
-                logging.info("cleaning up after coucbase")
                 cb_run.cb_off(cb_run.conn)
     load_time_end = time.perf_counter()
     load_time = timedelta(seconds=load_time_end - load_time_start)
