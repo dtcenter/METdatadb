@@ -93,101 +93,134 @@ def main():
         logging.error("*** %s occurred in Main purging files not selected ***", sys.exc_info()[0])
         sys.exit("*** Error when removing files from load list per XML")
 
-    #
-    #  Read the data files
-    #
-    try:
+    # Set up indices to process some maximum number of files at a time
+    set_count = 0
+    first_file = 0
+    last_file = len(xml_loadfile.load_files) - 1
 
-        # instantiate a read data files object
-        file_data = ReadDataFiles()
+    if last_file > CN.MAX_FILES:
+        mid_file = first_file + CN.MAX_FILES
+    else:
+        mid_file = last_file
 
-        # read in the data files, with options specified by XML flags
-        file_data.read_data(xml_loadfile.flags,
-                            xml_loadfile.load_files,
-                            xml_loadfile.line_types)
+    while mid_file <= last_file:
+        try:
+            # Keep track of which set of files is being processed
+            set_count = set_count + 1
+            # Handle only 1 file, or more files
+            if first_file == last_file:
+                current_files = [xml_loadfile.load_files[first_file]]
+            else:
+                current_files = xml_loadfile.load_files[first_file:mid_file + 1]
 
-        if file_data.data_files.empty:
-            logging.warning("!!! No files to load")
-            sys.exit("*** No files to load")
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s occurred in Main setting up loop ***", sys.exc_info()[0])
+            sys.exit("*** Error when setting up loop")
 
-    except (RuntimeError, TypeError, NameError, KeyError):
-        logging.error("*** %s occurred in Main reading data ***", sys.exc_info()[0])
-        sys.exit("*** Error when reading data files")
+        #
+        #  Read the data files
+        #
+        try:
 
-    #
-    #  Write the data to a database
-    #
-    try:
-        if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
-            sql_run = RunSql()
-            sql_run.sql_on(xml_loadfile.connection)
+            # instantiate a read data files object
+            file_data = ReadDataFiles()
 
-            # write the data file records out. put data file ids into other dataframes
-            write_file = WriteFileSql()
-            updated_data = write_file.write_file_sql(xml_loadfile.flags,
-                                                     file_data.data_files,
-                                                     file_data.stat_data,
-                                                     file_data.mode_cts_data,
-                                                     file_data.mode_obj_data,
-                                                     sql_run.cur,
-                                                     sql_run.local_infile)
-
-            file_data.data_files = updated_data[0]
-            file_data.stat_data = updated_data[1]
-            file_data.mode_cts_data = updated_data[2]
-            file_data.mode_obj_data = updated_data[3]
+            # read in the data files, with options specified by XML flags
+            file_data.read_data(xml_loadfile.flags,
+                                current_files,
+                                xml_loadfile.line_types)
 
             if file_data.data_files.empty:
-                logging.warning("!!! No data to load")
-                sys.exit("*** No data to load")
+                logging.warning("!!! No files to load in current set %s", str(set_count))
+                # move indices to the next set of files
+                first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
+                continue
 
-            if not file_data.stat_data.empty:
-                stat_lines = WriteStatSql()
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s occurred in Main reading data ***", sys.exc_info()[0])
+            sys.exit("*** Error when reading data files")
 
-                stat_lines.write_sql_data(xml_loadfile.flags,
-                                          file_data.stat_data,
-                                          sql_run.cur,
-                                          sql_run.local_infile)
+        #
+        #  Write the data to a database
+        #
+        try:
 
-            if not file_data.mode_cts_data.empty or not file_data.mode_obj_data.empty:
-                cts_lines = WriteModeSql()
+            if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
+                # for the first set of files, connect to the database
+                if set_count == 1:
+                    sql_run = RunSql()
+                    sql_run.sql_on(xml_loadfile.connection)
 
-                cts_lines.write_mode_data(xml_loadfile.flags,
-                                          file_data.mode_cts_data,
-                                          file_data.mode_obj_data,
-                                          sql_run.cur,
-                                          sql_run.local_infile)
+                # write the data file records out. put data file ids into other dataframes
+                write_file = WriteFileSql()
+                updated_data = write_file.write_file_sql(xml_loadfile.flags,
+                                                         file_data.data_files,
+                                                         file_data.stat_data,
+                                                         file_data.mode_cts_data,
+                                                         file_data.mode_obj_data,
+                                                         sql_run.cur,
+                                                         sql_run.local_infile)
 
-            write_file.write_metadata_sql(xml_loadfile.flags,
-                                          file_data.data_files,
-                                          xml_loadfile.group,
-                                          xml_loadfile.description,
-                                          xml_loadfile.load_note,
-                                          xml_loadfile.xml_str,
-                                          sql_run.cur)
+                file_data.data_files = updated_data[0]
+                file_data.stat_data = updated_data[1]
+                file_data.mode_cts_data = updated_data[2]
+                file_data.mode_obj_data = updated_data[3]
 
-            if sql_run.conn.open:
-                sql_run.sql_off(sql_run.conn, sql_run.cur)
-        else:
-            if xml_loadfile.connection['db_management_system'] in CN.CB:
-                cb_run = RunCB()
-                # establish bucket connection
-                logging.info("establishing cb bucket connection")
-                cb_run.cb_on(xml_loadfile.connection)
-                #write_documents(file_data.stat_data)
-                logging.info("writing cb documents")
-                cb_run.write_cb(file_data)
-    except (RuntimeError, TypeError, NameError, KeyError):
-        logging.error("*** %s occurred in Main writing data ***", sys.exc_info()[0])
-        sys.exit("*** Error when writing data to database")
+                if file_data.data_files.empty:
+                    logging.warning("!!! No data to load in current set %s", str(set_count))
+                    # move indices to the next set of files
+                    first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
+                    continue
 
-    finally:
-        if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
-            if sql_run.conn.open:
-                sql_run.sql_off(sql_run.conn, sql_run.cur)
-        else:
-            if xml_loadfile.connection['db_management_system'] in CN.CB:
-                cb_run.cb_off(cb_run.conn)
+                if not file_data.stat_data.empty:
+                    stat_lines = WriteStatSql()
+
+                    stat_lines.write_sql_data(xml_loadfile.flags,
+                                              file_data.stat_data,
+                                              sql_run.cur,
+                                              sql_run.local_infile)
+
+                if not file_data.mode_cts_data.empty or not file_data.mode_obj_data.empty:
+                    cts_lines = WriteModeSql()
+
+                    cts_lines.write_mode_data(xml_loadfile.flags,
+                                              file_data.mode_cts_data,
+                                              file_data.mode_obj_data,
+                                              sql_run.cur,
+                                              sql_run.local_infile)
+
+                if mid_file >= last_file:
+                    write_file.write_metadata_sql(xml_loadfile.flags,
+                                                  file_data.data_files,
+                                                  xml_loadfile.group,
+                                                  xml_loadfile.description,
+                                                  xml_loadfile.load_note,
+                                                  xml_loadfile.xml_str,
+                                                  sql_run.cur)
+
+                    if sql_run.conn.open:
+                        sql_run.sql_off(sql_run.conn, sql_run.cur)
+
+            else:
+                if xml_loadfile.connection['db_management_system'] in CN.CB:
+                    cb_run = RunCB()
+                    # establish bucket connection
+                    logging.info("establishing cb bucket connection")
+                    cb_run.cb_on(xml_loadfile.connection)
+                    #write_documents(file_data.stat_data)
+                    logging.info("writing cb documents")
+                    cb_run.write_cb(file_data)
+
+            # move indices to the next set of files
+            first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
+
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s occurred in Main writing data ***", sys.exc_info()[0])
+            sys.exit("*** Error when writing data to database")
+
+    if sql_run.conn.open:
+        sql_run.sql_off(sql_run.conn, sql_run.cur)
+
     load_time_end = time.perf_counter()
     load_time = timedelta(seconds=load_time_end - load_time_start)
 
@@ -195,6 +228,19 @@ def main():
     logging.info("End time: %s", str(datetime.now()))
     logging.info("--- *** --- End METdbLoad --- *** ---")
 
+def next_set(first_file, mid_file, last_file):
+    """ move indices to next set of files
+        Returns:
+           N/A
+    """
+    first_file = mid_file + 1
+    if first_file > last_file:
+        mid_file = last_file + 1
+    else:
+        mid_file = first_file + CN.MAX_FILES
+        if mid_file > last_file:
+            mid_file = last_file
+    return first_file, mid_file, last_file
 
 def purge_files(load_files, xml_flags):
     """ remove any files from load list that user has disallowed in XML tags

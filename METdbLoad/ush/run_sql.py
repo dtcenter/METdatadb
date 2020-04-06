@@ -51,8 +51,8 @@ class RunSql:
                                         db=connection['db_name'],
                                         local_infile=True)
 
-        except pymysql.OperationalError as e:
-            logging.error("*** %s in run_sql ***", str(e))
+        except pymysql.OperationalError as pop_err:
+            logging.error("*** %s in run_sql ***", str(pop_err))
             sys.exit("*** Error when connecting to database")
 
         try:

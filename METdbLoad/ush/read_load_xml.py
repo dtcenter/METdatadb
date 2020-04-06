@@ -198,7 +198,6 @@ class XmlLoadFile:
             logging.error("*** %s in read_xml ***", sys.exc_info()[0])
             sys.exit("*** Error(s) found while reading XML file!")
 
-        logging.debug("group is: %s", self.group)
         logging.debug("db_name is: %s", self.connection['db_name'])
 
         # generate all possible path/filenames from folder template
@@ -211,6 +210,8 @@ class XmlLoadFile:
 
         # remove directory names
         self.load_files = [lf for lf in self.load_files if '.' in lf.split('/')[-1]]
+
+        logging.debug("Initial number of files: %s", str(len(self.load_files)))
 
         logging.debug("[--- End read_xml ---]")
 

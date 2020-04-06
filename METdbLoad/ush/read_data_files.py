@@ -128,7 +128,6 @@ class ReadDataFiles:
 
                         # Add a DESC column if the data file does not have one
                         if not file_hdr.iloc[0].str.contains(CN.UC_DESC).any():
-                            logging.debug("Old MET file - no DESC")
                             hdr_names = CN.SHORT_HEADER + CN.COL_NUMS
                             one_file = self.read_stat(filename, hdr_names)
 
@@ -139,7 +138,6 @@ class ReadDataFiles:
 
                         # If the file has a DESC column, but no UNITS columns
                         elif not file_hdr.iloc[0].str.contains(CN.UC_FCST_UNITS).any():
-                            logging.debug("Older MET file - no FCST_UNITS")
                             hdr_names = CN.MID_HEADER + CN.COL_NUMS
                             one_file = self.read_stat(filename, hdr_names)
 
@@ -177,8 +175,8 @@ class ReadDataFiles:
                             # this protects from changing weird variable names, and removes =
                             split_file = vsdb_file.iloc[:, 0].str.split('=', expand=True)
 
-                            # put a space in front of hyphen between numbers in case space is missing
-                            # but FHO can have negative thresh - so fix with regex, only between numbers
+                            # put space in front of hyphen between numbers in case space is missing
+                            # FHO can have negative thresh - fix with regex, only between numbers
                             split_file.iloc[:, 1] = \
                                 split_file.iloc[:, 1].str.replace(r'(\d)-(\d)', r'\1 -\2')
 

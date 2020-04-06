@@ -7,8 +7,12 @@
 # name to use for a group when no group tag is included in load_spec
 DEFAULT_DATABASE_GROUP = "NO GROUP"
 
-# Maxiumum number of columns
+# Maximum number of columns
 MAX_COL = 120
+
+# Maximum number of files to load at a time
+# Goal is to not max out memory
+MAX_FILES = 1000
 
 COL_NUMS = [str(x) for x in range(MAX_COL - 24)]
 

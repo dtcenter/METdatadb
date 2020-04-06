@@ -57,6 +57,9 @@ class WriteFileSql:
             if next_file_id == 0:
                 next_file_id = 1
 
+            id_ctr = 0
+            list_dupes = []
+
             # write out records for data files, but first:
             # check for duplicates if flag on - delete if found
             for row_num, file_line in data_files.iterrows():
@@ -66,31 +69,47 @@ class WriteFileSql:
 
                 # If you find a match, check the force_dup_file tag/flag
                 if sql_cur.rowcount > 0:
+                    list_dupes = list_dupes + [row_num]
                     if not load_flags['force_dup_file']:
-                        # delete line data rows that match index of duplicated file
-                        if not stat_data.empty:
-                            stat_data = stat_data.drop(stat_data[stat_data.file_row ==
-                                                                 file_line.file_row].index)
-                        if not mode_cts_data.empty:
-                            mode_cts_data = \
-                                mode_cts_data.drop(mode_cts_data[mode_cts_data.file_row ==
-                                                                 file_line.file_row].index)
-                        if not mode_obj_data.empty:
-                            mode_obj_data = \
-                                mode_obj_data.drop(mode_obj_data[mode_obj_data.file_row ==
-                                                                 file_line.file_row].index)
-                        data_files = data_files.drop(row_num)
                         logging.warning("!!! Duplicate file %s without FORCE_DUP_FILE tag",
                                         file_line[CN.FULL_FILE])
                     else:
                         # With duplicate files allowed, save the existing id for the file
                         data_files.loc[data_files.index[row_num], CN.DATA_FILE_ID] = result[0]
+                        logging.warning("Duplicate file %s already in data_file",
+                                        file_line[CN.FULL_FILE])
                 # Not a duplicate - give it a new id
                 else:
                     data_files.loc[data_files.index[row_num], CN.DATA_FILE_ID] = \
-                        row_num + next_file_id
+                        id_ctr + next_file_id
+                    id_ctr = id_ctr + 1
 
             # end for row_num, file_line
+
+            if not load_flags['force_dup_file']:
+
+                # delete line data rows that match index of duplicated file
+                if not stat_data.empty and list_dupes:
+                    if stat_data.file_row.isin(list_dupes).any():
+                        stat_data.drop(stat_data[stat_data.file_row
+                                                 .isin(list_dupes)].index,
+                                       inplace=True)
+
+                if not mode_cts_data.empty and list_dupes:
+                    if mode_cts_data.file_row.isin(list_dupes).any():
+                        mode_cts_data.drop(mode_cts_data[mode_cts_data.file_row
+                                                         .isin(list_dupes)].index,
+                                           inplace=True)
+
+                if not mode_obj_data.empty and list_dupes:
+                    if mode_cts_data.file_row.isin(list_dupes).any():
+                        mode_obj_data.drop(mode_obj_data[mode_obj_data.file_row
+                                                         .isin(list_dupes)].index,
+                                           inplace=True)
+
+            # delete duplicate file entries
+            index_names = data_files[data_files.data_file_id == CN.NO_KEY].index
+            data_files.drop(index_names, inplace=True)
 
             if not data_files.empty:
 
