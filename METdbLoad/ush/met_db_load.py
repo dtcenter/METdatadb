@@ -143,6 +143,9 @@ def main():
         #
         #  Write the data to a database
         #
+        # decalre these outside so the finally works
+        cb_run = None
+        sql_run = None
         try:
 
             if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
@@ -201,15 +204,14 @@ def main():
                     if sql_run.conn.open:
                         sql_run.sql_off(sql_run.conn, sql_run.cur)
 
-            else:
-                if xml_loadfile.connection['db_management_system'] in CN.CB:
-                    cb_run = RunCB()
-                    # establish bucket connection
-                    logging.info("establishing cb bucket connection")
-                    cb_run.cb_on(xml_loadfile.connection)
-                    #write_documents(file_data.stat_data)
-                    logging.info("writing cb documents")
-                    cb_run.write_cb(file_data)
+            elif xml_loadfile.connection['db_management_system'] in CN.CB:
+                cb_run = RunCB()
+                # establish bucket connection
+                logging.info("establishing cb bucket connection")
+                cb_run.cb_on(xml_loadfile.connection)
+                #write_documents(file_data.stat_data)
+                logging.info("writing cb documents")
+                cb_run.write_cb(file_data)
 
             # move indices to the next set of files
             first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
@@ -217,10 +219,13 @@ def main():
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s occurred in Main writing data ***", sys.exc_info()[0])
             sys.exit("*** Error when writing data to database")
-
-    if sql_run.conn.open:
-        sql_run.sql_off(sql_run.conn, sql_run.cur)
-
+        finally:
+            if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
+                if sql_run.conn.open:
+                    sql_run.sql_off(sql_run.conn, sql_run.cur)
+            elif xml_loadfile.connection['db_management_system'] in CN.CB:
+                if cb_run.conn:
+                    cb_run.cb_off(cb_run.conn)
     load_time_end = time.perf_counter()
     load_time = timedelta(seconds=load_time_end - load_time_start)
 

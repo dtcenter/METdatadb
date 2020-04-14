@@ -21,6 +21,8 @@ import sys
 # couchbase
 from couchbase.cluster import Cluster
 from couchbase.cluster import PasswordAuthenticator
+from couchbase.exceptions import CouchbaseError
+
 
 import constants as CN
 
