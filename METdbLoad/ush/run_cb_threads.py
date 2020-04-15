@@ -1,29 +1,33 @@
 """
-Program Name: Class Data_Type_Manager.py
+Program Name: main script for Data_Type_Manager
 Contact(s): Randy Pierce
 Abstract:
 
 History Log:  Initial version
 
-Usage: The manager runs as a thread and is given a list of file names. It maintains its own connection which it keeps open until it finishes.
-As it reads the file it determines which concrete builder to use for each line.
-When it finishes the file it converts the data to a document and upserts it.
-        Attributes:
-            file - a vsdb file
+Usage: This script process arguments which define a Metviewer xml_load_spec, a thread count, and a number
+of other mvload related parameters.
+The script maintains a thread pool of Data_Managers, and a queue of filenames that is derived from the load_spec.xml input.
+The number of threads in the thread pool is set to the -t n (or --threads n) argument, where n is the number of threads to start. The fileName list
+is unlimited.
+For the moment this script can only process a couchbase (cb) type management_system. This means that the tag
+"<connection>
+    <management_system>cb</management_system>
+ "
+ must be set to "cb".
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of Colorado, NOAA/OAR/ESRL/GSD
 """
 import argparse
 import logging
-import time
 import sys
+import time
 from datetime import datetime
 from datetime import timedelta
-
 from queue import Queue
 
+from data_type_manager import Data_Type_Manager
 from read_load_xml import XmlLoadFile
 
-from data_type_manager import Data_Type_Manager
 
 def main():
     begin_time = str(datetime.now())
@@ -35,7 +39,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("xmlfile", help="Please provide required xml load_spec filename")
     parser.add_argument("-index", action="store_true", help="Only process index, do not load data")
-    parser.add_argument("-t", "--threads", type=int, default = 1, help = "Number of threads to use")
+    parser.add_argument("-t", "--threads", type=int, default=1, help="Number of threads to use")
     # get the command line arguments
     args = parser.parse_args()
 
@@ -69,12 +73,16 @@ def main():
             logging.warning("!!! No files to load")
             sys.exit("*** No files to load")
 
+        if not xml_loadfile.connection['db_management_system'].upper() == 'CB':
+            logging.warning("wrong db_management_system. Can only support 'CB'")
+            sys.exit("*** wrong db_management_system " + xml_loadfile.connection['db_management_system'])
+
     except (RuntimeError, TypeError, NameError, KeyError):
         logging.error("*** %s occurred in Main purging files not selected ***", sys.exc_info()[0])
         sys.exit("*** Error when removing files from load list per XML")
 
     # load the queue with filenames
-    #Constructor for an infinite size FIFO queue
+    # Constructor for an infinite size FIFO queue
     q = Queue()
     for f in xml_loadfile.load_files:
         q.put(f)
@@ -96,6 +104,7 @@ def main():
     logging.info("    >>> Total load time: %s", str(load_time))
     logging.info("End time: %s", str(datetime.now()))
     logging.info("--- *** --- End METdbLoad --- *** ---")
+
 
 def purge_files(load_files, xml_flags):
     """ remove any files from load list that user has disallowed in XML tags
@@ -128,6 +137,7 @@ def purge_files(load_files, xml_flags):
         sys.exit("*** Error in purge files")
 
     return updated_list
+
 
 if __name__ == '__main__':
     main()

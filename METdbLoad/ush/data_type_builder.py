@@ -1,37 +1,50 @@
 """
-Program Name: Class Vsdb_V01_SL1L2_builder.py
+Program Name: Class Data_Type_Builder.py
 Contact(s): Randy Pierce
 Abstract:
 
 History Log:  Initial version
 
-Usage: Abstract Data_Type_Builder has common code.
-        Concrete instantiations handle converting lines to a document map that is keyed by a document ID.
-        Each concrete subclass must accept a line and from it derive
-            self._records={} - a map of records that is keyed by header fields and data fields and contains values from the line
-            self._header_fields - a list of header fields for this type
-            self._data_fields - a list of data fields for this type
-        Each concrete subclass must implement methods:
-            _start_new_document(self, record, data_type)  - starts a new document for a given id
-            _handle_record_for_line_type(self, data_type, line, data_fields, data_record) - either appends a data_record or
-                starts a new document for the given id
+Usage: Abstract Data_Type_Builder has common code for concrete data_type_builders. A pool of instantiated data_type_builders is
+        used by a Data_Type_Manager to parse a MET output file and produce a set of documents suitable for insertion into couchbase.
+        Concrete instantiations convert a line of a MET output file to a document map that is keyed by a document ID.
+        Each concrete builder must over ride the function ...
+        def handle_record_for_line_type(self, data_type, line, document_map, database_name):
+        ....
+        which will be called from the Data_Type_MAnager like this ...
+        builder.handle_record_for_line_type(data_type, line, document_map, database_name)
+        ....
+        where builder is the concrete builder instance, line is the line to be parsed, data_type is the data_type of the line,
+        data_base name is just a name that will be used in the subset field of an output document, and document_map
+        is a map that is maintained ny the builder manager.
+        Each concrete builder must create these two lists on construction...
+            self.header_field_names = a standardized ordered list of HEADER fields for this data_type.
+            self.data_field_names = a standardized ordered list of DATA fields for this data_type.
+            The order of these fields is specific to the lines of the MET input file for a given data_type.
+
+        Each concrete subclass method handle_record_for_line_type must derive from the line
+            a record which is a dictionary of fields that is keyed by header fields and data fields and contains values
+            that are parsed from the line.
+            The handle_record_for_line_type method then uses the record HEADER fields to create a unique id specific to the data_type.
+            The record and id are then used to either start a new entry into the document_map[data_type] dictionary that is keyed by the
+            id, or to derive and add a data_record dictionary from the record to the document_map[data_type][id][data] dictionary.
 
         Attributes:
-            CB : CB constants - extend CN
             _document_map : temporary documents
             _database_name : database name from connection
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of Colorado, NOAA/OAR/ESRL/GSD
 """
-import sys
-import re
-from abc import ABC, abstractmethod
+
 import logging
+import re
+import sys
+from abc import ABC
+
 import cb_constants as CB
 import constants as CN
 
 
-# Abstract line type builder
 class Data_Type_Builder(ABC):
     # Abstract Class for data_type builders
     def __init__(self):
@@ -55,25 +68,26 @@ class Data_Type_Builder(ABC):
 
     def get_data_record_VSDB_V01_L1L2(self, record):
         try:
-            data_record = {CN.FCST_LEAD: str(record[CN.FCST_LEAD])} # want to include FCST_LEAD
+            data_record = {CN.FCST_LEAD: str(record[CN.FCST_LEAD])}  # want to include FCST_LEAD
             for key in self.data_field_names:
                 try:
                     data_record[key] = str(record[key])
-                except: # there might not be a filed (sometimes vsdb records are truncated)
+                except:  # there might not be a filed (sometimes vsdb records are truncated)
                     data_record[key] = None
             return data_record
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " get_data_record_VSDB_V01_L1L2 error: " + e)
+            logging.error(
+                "Exception instantiating builder: " + self.__class__.__name__ + " get_data_record_VSDB_V01_L1L2 error: " + e)
             return {}
 
     def parse_line_to_record_VSDB_V01_L1L2(self, line):
         document_fields = self.header_field_names + self.data_field_names
-        self._record={}
+        self._record = {}
         record_fields = ' '.join(re.split("\s|=", line)).split()
         i = 0
         while (i < len(document_fields) - 1):
-            try: # index of record might be out of range since VSDB files often do have the last field
+            try:  # index of record might be out of range since VSDB files often do have the last field
                 self._record[document_fields[i]] = record_fields[i]
             except:
                 self._record[document_fields[i]] = None
@@ -91,7 +105,7 @@ class Data_Type_Builder(ABC):
                 CB.TYPE: "DataDocument",
                 CB.DATATYPE: data_type,
                 CB.SUBSET: database_name,
-                CB.DATAFILE_ID: "DF_id",    # placeholder this is To Be Determined!   TODO!!!
+                CB.DATAFILE_ID: "DF_id",  # placeholder this is To Be Determined!   TODO!!!
                 CB.DATASOURCE_ID: "DS_id",  # placeholder this is To Be Determined!   TODO!!!
                 CN.VERSION: record[CN.VERSION] if CN.VERSION in keys else None,
                 CN.MODEL: record[CN.MODEL] if CN.MODEL in keys else None,
@@ -103,10 +117,11 @@ class Data_Type_Builder(ABC):
                 CN.FCST_LEV: record[CN.FCST_LEV] if CN.FCST_LEV in keys else None,
                 CB.DATA: {record[CN.FCST_LEAD]: data_record}
             }
-            #logging.info("started record for document")
+            # logging.info("started record for document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " start_new_document_VSDB_V01_L1L2 error: " + e)
+            logging.error(
+                "Exception instantiating builder: " + self.__class__.__name__ + " start_new_document_VSDB_V01_L1L2 error: " + e)
 
     def handle_record_for_record_type(self, data_type, line, document_map, database_name):
         pass
@@ -127,7 +142,8 @@ class VSDB_V01_SL1L2_builder(Data_Type_Builder):
         super(VSDB_V01_SL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
-        self.data_field_names = [CN.TOTAL_LC] + (list(set(CN.LINE_DATA_FIELDS[CN.SL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
+        self.data_field_names = [CN.TOTAL_LC] + (
+            list(set(CN.LINE_DATA_FIELDS[CN.SL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
 
     def handle_record_for_line_type(self, data_type, line, document_map, database_name):
         try:
@@ -143,10 +159,11 @@ class VSDB_V01_SL1L2_builder(Data_Type_Builder):
             else:
                 # add the data_record to the document data map
                 document_map[data_type][id][CB.DATA][record[CN.FCST_LEAD]] = self.get_data_record_VSDB_V01_L1L2(record)
-            #logging.info("added data record to document")
+            # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ +  " error: " + e)
+            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + e)
+
 
 class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
     # This data_type builder can leverage the parent self.start_new_document_VSDB_V01_L1L2, and
@@ -169,14 +186,16 @@ class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
             document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[
                 data_type].get(id)
             if not document_map[data_type][id].get(CB.ID):  # document might be uninitialized
-                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)  # start new document for this data_type
+                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
+                                                      database_name)  # start new document for this data_type
             else:
                 document_map[data_type][id][CB.DATA][
-                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(record)  # add the data_record to the document data map
-            #logging.info("added data record to document")
+                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(
+                    record)  # add the data_record to the document data map
+            # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ +  " error: " + e)
+            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + e)
 
 
 class VSDB_V01_VL1L2_builder(Data_Type_Builder):
@@ -200,14 +219,16 @@ class VSDB_V01_VL1L2_builder(Data_Type_Builder):
             document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[
                 data_type].get(id)
             if not document_map[data_type][id].get(CB.ID):  # document might be uninitialized
-                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)  # start new document for this data_type
+                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
+                                                      database_name)  # start new document for this data_type
             else:
                 document_map[data_type][id][CB.DATA][
-                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(record)  # add the data_record to the document data map
-            #logging.info("added data record to document")
+                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(
+                    record)  # add the data_record to the document data map
+            # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ +  " error: " + e)
+            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + e)
 
 
 class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
@@ -231,11 +252,13 @@ class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
             document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[
                 data_type].get(id)
             if not document_map[data_type][id].get(CB.ID):  # document might be uninitialized
-                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)  # start new document for this data_type
+                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
+                                                      database_name)  # start new document for this data_type
             else:
                 document_map[data_type][id][CB.DATA][
-                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(record)  # add the data_record to the document data map
-            #logging.info("added data record to document")
+                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(
+                    record)  # add the data_record to the document data map
+            # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ +  " error: " + e)
+            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + e)
