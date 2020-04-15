@@ -87,7 +87,7 @@ class Data_Type_Manager(threading.Thread):
 
         # all the lines are now processed for this file so write the documents
         try:
-            logging.info('data_type_manager writing documents for file :  ' + fileName)
+            logging.info('data_type_manager writing documents for file :  ' + fileName + " threadName: " + self.threadName)
             for key in self.document_map.keys():
                 self.conn.upsert_multi(self.document_map[key])
                 logging.info('data_type_manager fileName writing documents:' + key + ' size is ' + str(
