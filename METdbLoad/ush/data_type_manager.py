@@ -90,8 +90,8 @@ class Data_Type_Manager(threading.Thread):
             logging.info('data_type_manager writing documents for file :  ' + fileName + " threadName: " + self.threadName)
             for key in self.document_map.keys():
                 self.conn.upsert_multi(self.document_map[key])
-                logging.info('data_type_manager fileName writing documents:' + key + ' size is ' + str(
-                    sys.getsizeof(self.document_map[key])))
+                # logging.info('data_type_manager fileName writing documents:' + key + ' size is ' + str(
+                #     sys.getsizeof(self.document_map[key])))
         except:
             e = sys.exc_info()[0]
             logging.error("*** %s Error writing to Couchbase: in data_type_manager writing document ***", str(e))
