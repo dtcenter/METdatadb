@@ -21,6 +21,8 @@ import argparse
 import logging
 import sys
 import time
+#import yappi # multi-threaded profiler
+
 from datetime import datetime
 from datetime import timedelta
 from queue import Queue
@@ -30,6 +32,9 @@ from read_load_xml import XmlLoadFile
 
 
 def main():
+    """
+    This is the entry point for run_cb_threads.py
+    """
     begin_time = str(datetime.now())
     logging.basicConfig(level=logging.DEBUG)
     logging.info("--- *** --- Start METdbLoad --- *** ---")
@@ -81,6 +86,9 @@ def main():
         logging.error("*** %s occurred in Main purging files not selected ***", sys.exc_info()[0])
         sys.exit("*** Error when removing files from load list per XML")
 
+    #yappi.set_clock_type("cpu")  # Use set_clock_type("wall") for wall time
+    #yappi.start()
+
     # load the queue with filenames
     # Constructor for an infinite size FIFO queue
     q = Queue()
@@ -97,6 +105,9 @@ def main():
     # be sure to join all the threads to wait on them
     for dtm in _dtm_list:
         dtm.join()
+
+    #yappi.stop()
+
     logging.info("finished starting threads")
     load_time_end = time.perf_counter()
     load_time = timedelta(seconds=load_time_end - load_time_start)
@@ -105,9 +116,16 @@ def main():
     logging.info("End time: %s", str(datetime.now()))
     logging.info("--- *** --- End METdbLoad --- *** ---")
 
+    # retrieve thread stats by their thread id (given by yappi)
+    #threads = yappi.get_thread_stats()
+    # for thread in threads:
+    #     print(
+    #         "Function stats for (%s) (%d)" % (thread.name, thread.id)
+    #     )  # it is the Thread.__class__.__name__
+        #yappi.get_func_stats(ctx_id=thread.id).print_all()
 
 def purge_files(load_files, xml_flags):
-    """ remove any files from load list that user has disallowed in XML tags
+    """ purge_files  - removes any files from load list that user has disallowed in XML tags
         Returns:
            List with files user wants to load
     """

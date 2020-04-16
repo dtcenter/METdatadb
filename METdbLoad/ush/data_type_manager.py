@@ -27,16 +27,27 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of Colorado, 
 """
 
 import logging
+
 import sys
 import threading
 
 from couchbase.cluster import Cluster
 from couchbase.cluster import PasswordAuthenticator
-
 import data_type_builder as DTB
 
 
 class Data_Type_Manager(threading.Thread):
+    """
+    Data_Type_Manager is a Thread that manages an object pool of Data_Type_builders to build lines from MET files
+    into documents that can be inserted into couchbase.
+    This class will process files by collecting filenames - one at a time - from a filename
+    queue. For each filename it will read the file line by line and process each line.
+    From each line it derives the data_type which is a combination of file extension, version, and line_type.
+    It uses the data_type to either retrieve the reference of a corresponding data_type_builder from the object
+    pool or instantiate an appropriate data_type_builder and put it in the pool and retrieve its reference.
+    It uses the data_type_builder to process a line and either start a new document_map entry, or add a data_record from
+    the line to an existing data_map entry.
+    """
     def __init__(self, name, connection_credentials, q):
         # The Constructor for the RunCB class.
         threading.Thread.__init__(self)
@@ -53,7 +64,7 @@ class Data_Type_Manager(threading.Thread):
                                                   connection_credentials['db_password'])
             cluster.authenticate(authenticator)
             self.database_name = connection_credentials['db_name']
-            self.conn = cluster.open_bucket('m-data')
+            self.conn = cluster.open_bucket('mdata')
         except:
             e = sys.exc_info()[0]
             logging.error("*** %s error in data_type_manager constructor ***", str(e))
@@ -62,8 +73,13 @@ class Data_Type_Manager(threading.Thread):
 
     # entry point of the thread. Is invoked automatically when the thread is started.
     def run(self):
+        """
+        This is the entry point for the Data_Type_Manager thread. It runs an infinite loop that only
+        terminates when the fileName queue is empty. For each fileName it calls process_file with the fileName
+        to process the file.
+        """
         try:
-            # infinate loop terminates when the queue is empty
+            # infinite loop terminates when the queue is empty
             while True:
                 logging.info("getting a filename - queue size is " + str(self.q.qsize()))
                 if self.q.empty():

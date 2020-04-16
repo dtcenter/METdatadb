@@ -24,6 +24,7 @@ import time
 from datetime import datetime
 from datetime import timedelta
 import sys
+#import yappi # multi-threaded profiler
 
 import constants as CN
 
@@ -117,6 +118,7 @@ def main():
             logging.error("*** %s occurred in Main setting up loop ***", sys.exc_info()[0])
             sys.exit("*** Error when setting up loop")
 
+
         #
         #  Read the data files
         #
@@ -135,7 +137,6 @@ def main():
                 # move indices to the next set of files
                 first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
                 continue
-
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s occurred in Main reading data ***", sys.exc_info()[0])
             sys.exit("*** Error when reading data files")
@@ -226,6 +227,8 @@ def main():
             elif xml_loadfile.connection['db_management_system'] in CN.CB:
                 if cb_run.conn:
                     cb_run.cb_off(cb_run.conn)
+
+
     load_time_end = time.perf_counter()
     load_time = timedelta(seconds=load_time_end - load_time_start)
 
@@ -284,4 +287,8 @@ def purge_files(load_files, xml_flags):
 
 
 if __name__ == '__main__':
+#    yappi.set_clock_type("cpu")  # Use set_clock_type("wall") for wall time
+#    yappi.start()
     main()
+#    yappi.get_func_stats().print_all()
+#    yappi.get_thread_stats().print_all()

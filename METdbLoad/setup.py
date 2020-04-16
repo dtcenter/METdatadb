@@ -21,5 +21,5 @@ setup(
     author='Venita Hagerty',
     author_email='venita.hagerty@noaa.gov',
     packages=find_packages(exclude=['doc', 'tests']),
-    long_description=open('README.md').read(), install_requires=['pandas', 'numpy', 'pymysql']
+    long_description=open('README.md').read(), install_requires=['pandas', 'numpy', 'pymysql', 'yappi']
 )

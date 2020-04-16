@@ -43,7 +43,7 @@ from abc import ABC
 
 import cb_constants as CB
 import constants as CN
-
+from memory_profiler import profile
 
 class Data_Type_Builder(ABC):
     # Abstract Class for data_type builders
