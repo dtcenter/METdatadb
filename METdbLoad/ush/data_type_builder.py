@@ -9,10 +9,10 @@ Usage: Abstract Data_Type_Builder has common code for concrete data_type_builder
         used by a Data_Type_Manager to parse a MET output file and produce a set of documents suitable for insertion into couchbase.
         Concrete instantiations convert a line of a MET output file to a document map that is keyed by a document ID.
         Each concrete builder must over ride the function ...
-        def handle_record_for_line_type(self, data_type, line, document_map, database_name):
+        def handle_line(self, data_type, line, document_map, database_name):
         ....
         which will be called from the Data_Type_MAnager like this ...
-        builder.handle_record_for_line_type(data_type, line, document_map, database_name)
+        builder.handle_line(data_type, line, document_map, database_name)
         ....
         where builder is the concrete builder instance, line is the line to be parsed, data_type is the data_type of the line,
         data_base name is just a name that will be used in the subset field of an output document, and document_map
@@ -22,16 +22,16 @@ Usage: Abstract Data_Type_Builder has common code for concrete data_type_builder
             self.data_field_names = a standardized ordered list of DATA fields for this data_type.
             The order of these fields is specific to the lines of the MET input file for a given data_type.
 
-        Each concrete subclass method handle_record_for_line_type must derive from the line
+        Each concrete subclass method handle_line must derive from the line
             a record which is a dictionary of fields that is keyed by header fields and data fields and contains values
             that are parsed from the line.
-            The handle_record_for_line_type method then uses the record HEADER fields to create a unique id specific to the data_type.
+            The handle_line method then uses the record HEADER fields to create a unique id specific to the data_type.
             The record and id are then used to either start a new entry into the document_map[data_type] dictionary that is keyed by the
             id, or to derive and add a data_record dictionary from the record to the document_map[data_type][id][data] dictionary.
 
         Attributes:
-            _document_map : temporary documents
-            _database_name : database name from connection
+        self.header_field_names - the ordered list of HEADER field names
+        self.data_field_names - the  ordered list of DATA field names
 
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of Colorado, NOAA/OAR/ESRL/GSD
 """
@@ -58,6 +58,7 @@ class Data_Type_Builder(ABC):
         id = "DD::" + \
              record[CN.VERSION] + "::" + \
              record[CN.LINE_TYPE] + "::" + \
+             record[CB.SUBSET] + "::" + \
              record[CN.MODEL] + "::" + \
              record[CN.VX_MASK] + "::" + \
              record[CN.FCST_VAR] + "::" + \
@@ -81,7 +82,7 @@ class Data_Type_Builder(ABC):
                 "Exception instantiating builder: " + self.__class__.__name__ + " get_data_record_VSDB_V01_L1L2 error: " + e)
             return {}
 
-    def parse_line_to_record_VSDB_V01_L1L2(self, line):
+    def parse_line_to_record_VSDB_V01_L1L2(self, line, database_name):
         document_fields = self.header_field_names + self.data_field_names
         self._record = {}
         record_fields = ' '.join(re.split("\s|=", line)).split()
@@ -92,6 +93,7 @@ class Data_Type_Builder(ABC):
             except:
                 self._record[document_fields[i]] = None
             i = i + 1
+        self._record[CB.SUBSET] = database_name
         return self._record
 
     def start_new_document_VSDB_V01_L1L2(self, data_type, record, document_map, database_name):
@@ -123,7 +125,7 @@ class Data_Type_Builder(ABC):
             logging.error(
                 "Exception instantiating builder: " + self.__class__.__name__ + " start_new_document_VSDB_V01_L1L2 error: " + e)
 
-    def handle_record_for_record_type(self, data_type, line, document_map, database_name):
+    def handle_line(self, data_type, line, document_map, database_name):
         pass
 
 
@@ -132,12 +134,12 @@ class Data_Type_Builder(ABC):
 # one: construct the self._document_field_names list that is an ordered list of field names, first header then data fields,
 # that correlates positionally to each line of a specific builder type i.e. VSDB_V001_SL1L2.
 # using standardized names from the cn constants
-# two: implement _handle_record_for_line_type(self, data_type, record):
+# two: implement _handle_line(self, data_type, record):
 # where data_type is the datatype of a given line i.e. VSDB_V001_SL1L2 and record is a map derived from the parsed line and the self._document_field_names
 #
 class VSDB_V01_SL1L2_builder(Data_Type_Builder):
     # This data_type builder can leverage the parent self.start_new_document_VSDB_V01_L1L2, and
-    # self._handle_record_for_line_type_VSDB_V01_L1L2 because they are same for several data types.
+    # self._handle_line_VSDB_V01_L1L2 because they are same for several data types.
     def __init__(self):
         super(VSDB_V01_SL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
@@ -145,9 +147,9 @@ class VSDB_V01_SL1L2_builder(Data_Type_Builder):
         self.data_field_names = [CN.TOTAL_LC] + (
             list(set(CN.LINE_DATA_FIELDS[CN.SL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
 
-    def handle_record_for_line_type(self, data_type, line, document_map, database_name):
+    def handle_line(self, data_type, line, document_map, database_name):
         try:
-            record = self.parse_line_to_record_VSDB_V01_L1L2(line)
+            record = self.parse_line_to_record_VSDB_V01_L1L2(line, database_name)
             # derive the id for this record
             id = self.get_ID_VSDB_V01_L1L2(record)
             # python ternary - create the document_map[data_type][id] dict or get its reference if it exists already
@@ -167,7 +169,7 @@ class VSDB_V01_SL1L2_builder(Data_Type_Builder):
 
 class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
     # This data_type builder can leverage the parent self.start_new_document_VSDB_V01_L1L2, and
-    # self._handle_record_for_line_type_VSDB_V01_L1L2 because they are same for several data types.
+    # self._handle_line_VSDB_V01_L1L2 because they are same for several data types.
     def __init__(self):
         super(VSDB_V01_SAL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
@@ -175,9 +177,9 @@ class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
         self.data_field_names = [CN.TOTAL_LC] + (
             list(set(CN.LINE_DATA_FIELDS[CN.SAL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
 
-    def handle_record_for_line_type(self, data_type, line, document_map, database_name):
+    def handle_line(self, data_type, line, document_map, database_name):
         try:
-            record = self.parse_line_to_record_VSDB_V01_L1L2(line)
+            record = self.parse_line_to_record_VSDB_V01_L1L2(line, database_name)
             # derive the id for this record
             id = self.get_ID_VSDB_V01_L1L2(record)
             # python ternary - create the document_map[data_type][id] dict or get its reference if it exists already
@@ -200,7 +202,7 @@ class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
 
 class VSDB_V01_VL1L2_builder(Data_Type_Builder):
     # This data_type builder can leverage the parent self.start_new_document_VSDB_V01_L1L2, and
-    # self._handle_record_for_line_type_VSDB_V01_L1L2 because they are same for several data types.
+    # self._handle_line_VSDB_V01_L1L2 because they are same for several data types.
     def __init__(self):
         super(VSDB_V01_VL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
@@ -208,9 +210,9 @@ class VSDB_V01_VL1L2_builder(Data_Type_Builder):
         self.data_field_names = [CN.TOTAL_LC] + (
             list(set(CN.LINE_DATA_FIELDS[CN.VL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
 
-    def handle_record_for_line_type(self, data_type, line, document_map, database_name):
+    def handle_line(self, data_type, line, document_map, database_name):
         try:
-            record = self.parse_line_to_record_VSDB_V01_L1L2(line)
+            record = self.parse_line_to_record_VSDB_V01_L1L2(line, database_name)
             # derive the id for this record
             id = self.get_ID_VSDB_V01_L1L2(record)
             # python ternary - create the document_map[data_type][id] dict or get its reference if it exists already
@@ -233,7 +235,7 @@ class VSDB_V01_VL1L2_builder(Data_Type_Builder):
 
 class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
     # This data_type builder can leverage the parent self.start_new_document_VSDB_V01_L1L2, and
-    # self._handle_record_for_line_type_VSDB_V01_L1L2 because they are same for several data types.
+    # self._handle_line_VSDB_V01_L1L2 because they are same for several data types.
     def __init__(self):
         super(VSDB_V01_VAL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
@@ -241,9 +243,9 @@ class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
         self.data_field_names = [CN.TOTAL_LC] + (
             list(set(CN.LINE_DATA_FIELDS[CN.VAL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
 
-    def handle_record_for_line_type(self, data_type, line, document_map, database_name):
+    def handle_line(self, data_type, line, document_map, database_name):
         try:
-            record = self.parse_line_to_record_VSDB_V01_L1L2(line)
+            record = self.parse_line_to_record_VSDB_V01_L1L2(line, database_name)
             # derive the id for this record
             id = self.get_ID_VSDB_V01_L1L2(record)
             # python ternary - create the document_map[data_type][id] dict or get its reference if it exists already
