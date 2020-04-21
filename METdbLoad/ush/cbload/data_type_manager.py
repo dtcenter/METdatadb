@@ -99,9 +99,9 @@ class Data_Type_Manager(Process):
                     self.queue.task_done()
                 except queue.Empty:
                     if empty_count < 3:
-                        logging.info('data_type_manager - got Queue.Empty - retrying: ', str(empty_count),  " of 3 times")
-                        time.sleep(1)
                         empty_count += 1
+                        logging.info('data_type_manager - got Queue.Empty - retrying: ' + str(empty_count) + " of 3 times")
+                        time.sleep(1)
                         continue
                     else:
                         logging.info('data_type_manager - Queue empty - disconnecting couchbase')
