@@ -97,6 +97,7 @@ class Data_Type_Manager(Process):
                     fileName = self.queue.get_nowait()
                     self.process_file(fileName, bucket)
                     self.queue.task_done()
+                    empty_count = 0
                 except queue.Empty:
                     if empty_count < 3:
                         empty_count += 1
