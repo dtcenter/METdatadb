@@ -98,8 +98,9 @@ class Data_Type_Manager(Process):
                     self.process_file(fileName, bucket)
                     self.queue.task_done()
                 except queue.Empty:
-                    if empty_count < 10:
+                    if empty_count < 3:
                         time.sleep(1)
+                        empty_count += 1
                         continue
                     else:
                         logging.info('data_type_manager - Queue empty - isconnecting couchbase')
