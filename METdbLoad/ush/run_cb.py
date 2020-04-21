@@ -15,14 +15,12 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of Colorado, 
 # pylint:disable=no-member
 # constants exist in constants.py
 
-import json
 import logging
 import sys
+
 # couchbase
 from couchbase.cluster import Cluster
 from couchbase.cluster import PasswordAuthenticator
-from couchbase.exceptions import CouchbaseError
-
 
 import constants as CN
 
