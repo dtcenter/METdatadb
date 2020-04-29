@@ -117,7 +117,8 @@ class Data_Type_Builder(ABC):
                 CN.FCST_VAR: record[CN.FCST_VAR] if CN.FCST_VAR in keys else None,
                 CN.FCST_UNITS: record[CN.FCST_UNITS] if CN.FCST_UNITS in keys else None,
                 CN.FCST_LEV: record[CN.FCST_LEV] if CN.FCST_LEV in keys else None,
-                CB.DATA: {record[CN.FCST_LEAD]: data_record}
+                #CB.DATA: {record[CN.FCST_LEAD]: data_record}
+                CB.DATA: [data_record]
             }
             # logging.info("started record for document")
         except:
@@ -159,8 +160,8 @@ class VSDB_V01_SL1L2_builder(Data_Type_Builder):
                 # start new document for this data_type
                 self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)
             else:
-                # add the data_record to the document data map
-                document_map[data_type][id][CB.DATA][record[CN.FCST_LEAD]] = self.get_data_record_VSDB_V01_L1L2(record)
+                # append the data_record to the document data array
+                document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
@@ -191,9 +192,8 @@ class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
                 self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
                                                       database_name)  # start new document for this data_type
             else:
-                document_map[data_type][id][CB.DATA][
-                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(
-                    record)  # add the data_record to the document data map
+                # append the data_record to the document data array
+                document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
@@ -224,9 +224,8 @@ class VSDB_V01_VL1L2_builder(Data_Type_Builder):
                 self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
                                                       database_name)  # start new document for this data_type
             else:
-                document_map[data_type][id][CB.DATA][
-                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(
-                    record)  # add the data_record to the document data map
+                # append the data_record to the document data array
+                document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
@@ -257,9 +256,8 @@ class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
                 self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
                                                       database_name)  # start new document for this data_type
             else:
-                document_map[data_type][id][CB.DATA][
-                    str(record[CN.FCST_LEAD])] = self.get_data_record_VSDB_V01_L1L2(
-                    record)  # add the data_record to the document data map
+                # append the data_record to the document data array
+                document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
