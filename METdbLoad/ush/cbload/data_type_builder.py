@@ -41,6 +41,9 @@ import re
 import sys
 from abc import ABC
 
+import datetime as dt
+import calendar, time
+
 import constants as CN
 import cb_constants as CB
 
@@ -51,6 +54,15 @@ class Data_Type_Builder(ABC):
         # The Constructor for the RunCB class.
         self.header_field_names = None
         self.data_field_names = None
+
+    def get_timestamp_and_epoch(self, fcst_vsdb_timestamp, fcst_lead_hours):
+        # convert string to utc epoch
+        _valid_begin_local = dt.datetime.strptime(fcst_vsdb_timestamp, CB.TS_VSDB_FORMAT)
+        _valid_begin_epoch = int(calendar.timegm(_valid_begin_local.utctimetuple()))
+        _valid_begin_str = dt.datetime.utcfromtimestamp(_valid_begin_epoch).strftime(CB.TS_OUT_FORMAT)
+        _init_begin_epoch = _valid_begin_epoch - int(fcst_lead_hours) * 60 * 60
+        _init_begin_str = dt.datetime.utcfromtimestamp(_init_begin_epoch).strftime(CB.TS_OUT_FORMAT)
+        return {CN.FCST_INIT_BEG:_init_begin_str, CB.FCST_INIT_EPOCH:_init_begin_epoch, CN.FCST_VALID_BEG:_valid_begin_str, CB.FCST_VALID_EPOCH:_valid_begin_epoch}
 
     # common helper methods for VSDB_V01_L1L2 line types i.e. SL1L2, SAL1L2, VL1L2, VAL1L2
     def get_ID_VSDB_V01_L1L2(self, record):
@@ -75,26 +87,29 @@ class Data_Type_Builder(ABC):
                     data_record[key] = str(record[key])
                 except:  # there might not be a filed (sometimes vsdb records are truncated)
                     data_record[key] = None
+            _init_begin = self.get_timestamp_and_epoch(record[CN.FCST_VALID_BEG],record[CN.FCST_LEAD])
+            data_record[CN.FCST_INIT_BEG] = _init_begin[CN.FCST_INIT_BEG]
+            data_record[CB.FCST_INIT_EPOCH] = _init_begin[CB.FCST_INIT_EPOCH]
             return data_record
         except:
             e = sys.exc_info()[0]
             logging.error(
-                "Exception instantiating builder: " + self.__class__.__name__ + " get_data_record_VSDB_V01_L1L2 error: " + e)
+                "Exception instantiating builder: " + self.__class__.__name__ + " get_data_record_VSDB_V01_L1L2 error: " + str(e))
             return {}
 
     def parse_line_to_record_VSDB_V01_L1L2(self, line, database_name):
         document_fields = self.header_field_names + self.data_field_names
-        self._record = {}
+        _record = {}
         record_fields = ' '.join(re.split("\s|=", line)).split()
         i = 0
         while (i < len(document_fields) - 1):
             try:  # index of record might be out of range since VSDB files often do have the last field
-                self._record[document_fields[i]] = record_fields[i]
+                _record[document_fields[i]] = record_fields[i]
             except:
-                self._record[document_fields[i]] = None
+                _record[document_fields[i]] = None
             i = i + 1
-        self._record[CB.SUBSET] = database_name
-        return self._record
+        _record[CB.SUBSET] = database_name
+        return _record
 
     def start_new_document_VSDB_V01_L1L2(self, data_type, record, document_map, database_name):
         # Private method to start a new document - some of these fields are specifc to CB documents so they are in a local constants structure.
@@ -102,6 +117,7 @@ class Data_Type_Builder(ABC):
             data_record = self.get_data_record_VSDB_V01_L1L2(record)
             keys = record.keys()
             id = self.get_ID_VSDB_V01_L1L2(record)
+            _valid_timestamp_and_epoch = self.get_timestamp_and_epoch(str(record[CN.FCST_VALID_BEG]), 0) if CN.FCST_VALID_BEG in keys else None
             document_map[data_type][id] = {
                 CB.ID: id,
                 CB.TYPE: "DataDocument",
@@ -113,7 +129,8 @@ class Data_Type_Builder(ABC):
                 CN.MODEL: record[CN.MODEL] if CN.MODEL in keys else None,
                 CB.GEOLOCATION_ID: record[CN.VX_MASK] if CN.VX_MASK in keys else None,
                 CN.OBTYPE: record[CN.OBTYPE] if CN.OBTYPE in keys else None,
-                CN.FCST_VALID_BEG: str(record[CN.FCST_VALID_BEG]) if CN.FCST_VALID_BEG in keys else None,
+                CN.FCST_VALID_BEG: _valid_timestamp_and_epoch[CN.FCST_VALID_BEG] if _valid_timestamp_and_epoch else None,
+                CB.FCST_VALID_EPOCH: _valid_timestamp_and_epoch[CB.FCST_VALID_EPOCH] if _valid_timestamp_and_epoch else None,
                 CN.FCST_VAR: record[CN.FCST_VAR] if CN.FCST_VAR in keys else None,
                 CN.FCST_UNITS: record[CN.FCST_UNITS] if CN.FCST_UNITS in keys else None,
                 CN.FCST_LEV: record[CN.FCST_LEV] if CN.FCST_LEV in keys else None,
@@ -124,7 +141,7 @@ class Data_Type_Builder(ABC):
         except:
             e = sys.exc_info()[0]
             logging.error(
-                "Exception instantiating builder: " + self.__class__.__name__ + " start_new_document_VSDB_V01_L1L2 error: " + e)
+                "Exception instantiating builder: " + self.__class__.__name__ + " start_new_document_VSDB_V01_L1L2 error: " + str(e))
 
     def handle_line(self, data_type, line, document_map, database_name):
         pass
@@ -145,8 +162,7 @@ class VSDB_V01_SL1L2_builder(Data_Type_Builder):
         super(VSDB_V01_SL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
-        self.data_field_names = [CN.TOTAL_LC] + (
-            list(set(CN.LINE_DATA_FIELDS[CN.SL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
+        self.data_field_names = [CN.TOTAL_LC] + [x for x in CN.LINE_DATA_FIELDS[CN.SL1L2] if x not in CN.TOT_LINE_DATA_FIELDS]
 
     def handle_line(self, data_type, line, document_map, database_name):
         try:
@@ -165,7 +181,7 @@ class VSDB_V01_SL1L2_builder(Data_Type_Builder):
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + e)
+            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(e))
 
 
 class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
@@ -175,8 +191,7 @@ class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
         super(VSDB_V01_SAL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
-        self.data_field_names = [CN.TOTAL_LC] + (
-            list(set(CN.LINE_DATA_FIELDS[CN.SAL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
+        self.data_field_names = [CN.TOTAL_LC] + [x for x in CN.LINE_DATA_FIELDS[CN.SAL1L2] if x not in CN.TOT_LINE_DATA_FIELDS]
 
     def handle_line(self, data_type, line, document_map, database_name):
         try:
@@ -184,20 +199,18 @@ class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
             # derive the id for this record
             id = self.get_ID_VSDB_V01_L1L2(record)
             # python ternary - create the document_map[data_type][id] dict or get its reference if it exists already
-            document_map[data_type] = {} if not document_map.get(data_type) else document_map.get(
-                data_type)
-            document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[
-                data_type].get(id)
+            document_map[data_type] = {} if not document_map.get(data_type) else document_map.get(data_type)
+            document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[data_type].get(id)
             if not document_map[data_type][id].get(CB.ID):  # document might be uninitialized
-                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
-                                                      database_name)  # start new document for this data_type
+                # start new document for this data_type
+                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)
             else:
                 # append the data_record to the document data array
                 document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + e)
+            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(e))
 
 
 class VSDB_V01_VL1L2_builder(Data_Type_Builder):
@@ -207,8 +220,7 @@ class VSDB_V01_VL1L2_builder(Data_Type_Builder):
         super(VSDB_V01_VL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
-        self.data_field_names = [CN.TOTAL_LC] + (
-            list(set(CN.LINE_DATA_FIELDS[CN.VL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
+        self.data_field_names = [CN.TOTAL_LC] + [x for x in CN.LINE_DATA_FIELDS[CN.VL1L2] if x not in CN.TOT_LINE_DATA_FIELDS]
 
     def handle_line(self, data_type, line, document_map, database_name):
         try:
@@ -216,20 +228,17 @@ class VSDB_V01_VL1L2_builder(Data_Type_Builder):
             # derive the id for this record
             id = self.get_ID_VSDB_V01_L1L2(record)
             # python ternary - create the document_map[data_type][id] dict or get its reference if it exists already
-            document_map[data_type] = {} if not document_map.get(data_type) else document_map.get(
-                data_type)
-            document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[
-                data_type].get(id)
+            document_map[data_type] = {} if not document_map.get(data_type) else document_map.get(data_type)
+            document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[data_type].get(id)
             if not document_map[data_type][id].get(CB.ID):  # document might be uninitialized
-                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
-                                                      database_name)  # start new document for this data_type
+                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)  # start new document for this data_type
             else:
                 # append the data_record to the document data array
                 document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + e)
+            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(e))
 
 
 class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
@@ -239,8 +248,7 @@ class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
         super(VSDB_V01_VAL1L2_builder, self).__init__()
         # derive my headers and data fields - don't know why total is not part of CN.LINE_DATA_FIELDS[CN.SL1L2]
         self.header_field_names = CN.VSDB_HEADER
-        self.data_field_names = [CN.TOTAL_LC] + (
-            list(set(CN.LINE_DATA_FIELDS[CN.VAL1L2]) - set(CN.TOT_LINE_DATA_FIELDS)))
+        self.data_field_names = [CN.TOTAL_LC] + [x for x in CN.LINE_DATA_FIELDS[CN.VAL1L2] if x not in CN.TOT_LINE_DATA_FIELDS]
 
     def handle_line(self, data_type, line, document_map, database_name):
         try:
@@ -248,17 +256,14 @@ class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
             # derive the id for this record
             id = self.get_ID_VSDB_V01_L1L2(record)
             # python ternary - create the document_map[data_type][id] dict or get its reference if it exists already
-            document_map[data_type] = {} if not document_map.get(data_type) else document_map.get(
-                data_type)
-            document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[
-                data_type].get(id)
+            document_map[data_type] = {} if not document_map.get(data_type) else document_map.get(data_type)
+            document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[data_type].get(id)
             if not document_map[data_type][id].get(CB.ID):  # document might be uninitialized
-                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map,
-                                                      database_name)  # start new document for this data_type
+                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)  # start new document for this data_type
             else:
                 # append the data_record to the document data array
                 document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + e)
+            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(e))
