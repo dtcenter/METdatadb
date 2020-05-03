@@ -55,9 +55,15 @@ class Data_Type_Builder(ABC):
         self.header_field_names = None
         self.data_field_names = None
 
-    def get_timestamp_and_epoch(self, fcst_vsdb_timestamp, fcst_lead_hours):
-        # convert string to utc epoch
-        _valid_begin_local = dt.datetime.strptime(fcst_vsdb_timestamp, CB.TS_VSDB_FORMAT)
+    def convert_fcst_valid_beg_str(self, fcst_VSDB_timestamp):
+        _valid_begin_local = dt.datetime.strptime(fcst_VSDB_timestamp, CB.TS_VSDB_FORMAT)
+        _valid_begin_epoch = int(calendar.timegm(_valid_begin_local.utctimetuple()))
+        _valid_begin_str = dt.datetime.utcfromtimestamp(_valid_begin_epoch).strftime(CB.TS_OUT_FORMAT)
+        return _valid_begin_str
+
+    def get_timestamp_and_epoch(self, fcst_iso_timestamp, fcst_lead_hours):
+        # convert string to utc epoch 
+        _valid_begin_local = dt.datetime.strptime(fcst_iso_timestamp, CB.TS_OUT_FORMAT)
         _valid_begin_epoch = int(calendar.timegm(_valid_begin_local.utctimetuple()))
         _valid_begin_str = dt.datetime.utcfromtimestamp(_valid_begin_epoch).strftime(CB.TS_OUT_FORMAT)
         _init_begin_epoch = _valid_begin_epoch - int(fcst_lead_hours) * 60 * 60
@@ -76,7 +82,7 @@ class Data_Type_Builder(ABC):
              record[CN.FCST_VAR] + "::" + \
              record[CN.OBTYPE] + "::" + \
              record[CN.FCST_LEV] + "::" + \
-             str(record[CN.FCST_VALID_BEG])
+             str(record[CB.FCST_VALID_EPOCH])
         return id
 
     def get_data_record_VSDB_V01_L1L2(self, record):
@@ -87,14 +93,16 @@ class Data_Type_Builder(ABC):
                     data_record[key] = str(record[key])
                 except:  # there might not be a filed (sometimes vsdb records are truncated)
                     data_record[key] = None
+            # these fields are not in the CN constants so they aren't in the data_field_names
             _init_begin = self.get_timestamp_and_epoch(record[CN.FCST_VALID_BEG],record[CN.FCST_LEAD])
             data_record[CN.FCST_INIT_BEG] = _init_begin[CN.FCST_INIT_BEG]
             data_record[CB.FCST_INIT_EPOCH] = _init_begin[CB.FCST_INIT_EPOCH]
+            data_record[CN.FCST_VALID_BEG] = _init_begin[CN.FCST_VALID_BEG]
+            data_record[CB.FCST_VALID_EPOCH] = _init_begin[CB.FCST_VALID_EPOCH]
             return data_record
         except:
             e = sys.exc_info()[0]
-            logging.error(
-                "Exception instantiating builder: " + self.__class__.__name__ + " get_data_record_VSDB_V01_L1L2 error: " + str(e))
+            logging.error("Exception instantiating builder - get_data_record_VSDB_V01_L1L2: " + self.__class__.__name__ + " get_data_record_VSDB_V01_L1L2 error: " + str(e))
             return {}
 
     def parse_line_to_record_VSDB_V01_L1L2(self, line, database_name):
@@ -109,6 +117,10 @@ class Data_Type_Builder(ABC):
                 _record[document_fields[i]] = None
             i = i + 1
         _record[CB.SUBSET] = database_name
+        _valid_begin_iso_str = self.convert_fcst_valid_beg_str(str(_record[CN.FCST_VALID_BEG]))
+        _valid_timestamp_and_epoch = self.get_timestamp_and_epoch(_valid_begin_iso_str, 0)
+        _record[CB.FCST_VALID_EPOCH] = _valid_timestamp_and_epoch[CB.FCST_VALID_EPOCH]
+        _record[CN.FCST_VALID_BEG] = _valid_timestamp_and_epoch[CN.FCST_VALID_BEG]
         return _record
 
     def start_new_document_VSDB_V01_L1L2(self, data_type, record, document_map, database_name):
@@ -117,7 +129,6 @@ class Data_Type_Builder(ABC):
             data_record = self.get_data_record_VSDB_V01_L1L2(record)
             keys = record.keys()
             id = self.get_ID_VSDB_V01_L1L2(record)
-            _valid_timestamp_and_epoch = self.get_timestamp_and_epoch(str(record[CN.FCST_VALID_BEG]), 0) if CN.FCST_VALID_BEG in keys else None
             document_map[data_type][id] = {
                 CB.ID: id,
                 CB.TYPE: "DataDocument",
@@ -129,19 +140,17 @@ class Data_Type_Builder(ABC):
                 CN.MODEL: record[CN.MODEL] if CN.MODEL in keys else None,
                 CB.GEOLOCATION_ID: record[CN.VX_MASK] if CN.VX_MASK in keys else None,
                 CN.OBTYPE: record[CN.OBTYPE] if CN.OBTYPE in keys else None,
-                CN.FCST_VALID_BEG: _valid_timestamp_and_epoch[CN.FCST_VALID_BEG] if _valid_timestamp_and_epoch else None,
-                CB.FCST_VALID_EPOCH: _valid_timestamp_and_epoch[CB.FCST_VALID_EPOCH] if _valid_timestamp_and_epoch else None,
+                CN.FCST_VALID_BEG: record[CN.FCST_VALID_BEG],
+                CB.FCST_VALID_EPOCH: record[CB.FCST_VALID_EPOCH],
                 CN.FCST_VAR: record[CN.FCST_VAR] if CN.FCST_VAR in keys else None,
                 CN.FCST_UNITS: record[CN.FCST_UNITS] if CN.FCST_UNITS in keys else None,
                 CN.FCST_LEV: record[CN.FCST_LEV] if CN.FCST_LEV in keys else None,
-                #CB.DATA: {record[CN.FCST_LEAD]: data_record}
                 CB.DATA: [data_record]
             }
             # logging.info("started record for document")
         except:
             e = sys.exc_info()[0]
-            logging.error(
-                "Exception instantiating builder: " + self.__class__.__name__ + " start_new_document_VSDB_V01_L1L2 error: " + str(e))
+            logging.error("Exception instantiating builder - start_new_document_VSDB_V01_L1L2: " + self.__class__.__name__ + " start_new_document_VSDB_V01_L1L2 error: " + str(e))
 
     def handle_line(self, data_type, line, document_map, database_name):
         pass
@@ -181,7 +190,7 @@ class VSDB_V01_SL1L2_builder(Data_Type_Builder):
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("Exception instantiating builder - VSDB_V01_SL1L2_builder: " + self.__class__.__name__ + " error: " + str(e))
 
 
 class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
@@ -210,7 +219,7 @@ class VSDB_V01_SAL1L2_builder(Data_Type_Builder):
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("Exception instantiating builder - VSDB_V01_SAL1L2_builder: " + self.__class__.__name__ + " error: " + str(e))
 
 
 class VSDB_V01_VL1L2_builder(Data_Type_Builder):
@@ -231,14 +240,15 @@ class VSDB_V01_VL1L2_builder(Data_Type_Builder):
             document_map[data_type] = {} if not document_map.get(data_type) else document_map.get(data_type)
             document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[data_type].get(id)
             if not document_map[data_type][id].get(CB.ID):  # document might be uninitialized
-                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)  # start new document for this data_type
+                # start new document for this data_type
+                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)
             else:
                 # append the data_record to the document data array
                 document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("Exception instantiating builder - VSDB_V01_VL1L2_builder: " + self.__class__.__name__ + " error: " + str(e))
 
 
 class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
@@ -259,11 +269,12 @@ class VSDB_V01_VAL1L2_builder(Data_Type_Builder):
             document_map[data_type] = {} if not document_map.get(data_type) else document_map.get(data_type)
             document_map[data_type][id] = {} if not document_map[data_type].get(id) else document_map[data_type].get(id)
             if not document_map[data_type][id].get(CB.ID):  # document might be uninitialized
-                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)  # start new document for this data_type
+                # start new document for this data_type
+                self.start_new_document_VSDB_V01_L1L2(data_type, record, document_map, database_name)
             else:
                 # append the data_record to the document data array
                 document_map[data_type][id][CB.DATA].append(self.get_data_record_VSDB_V01_L1L2(record))
             # logging.info("added data record to document")
         except:
             e = sys.exc_info()[0]
-            logging.error("Exception instantiating builder: " + self.__class__.__name__ + " error: " + str(e))
+            logging.error("Exception instantiating builder - VSDB_V01_VAL1L2_builder: " + self.__class__.__name__ + " error: " + str(e))
