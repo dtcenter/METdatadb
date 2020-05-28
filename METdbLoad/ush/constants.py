@@ -12,7 +12,7 @@ MAX_COL = 120
 
 # Maximum number of files to load at a time
 # Goal is to not max out memory
-MAX_FILES = 1000
+MAX_FILES = 100
 
 COL_NUMS = [str(x) for x in range(MAX_COL - 24)]
 

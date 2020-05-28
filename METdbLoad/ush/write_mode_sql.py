@@ -23,30 +23,28 @@ import pandas as pd
 
 import constants as CN
 
-from run_sql import RunSql
+from run_sql import Run_Sql
 
 class WriteModeSql:
     """ Class to write mode files (cts and object) to a SQL database
         Returns:
            N/A
     """
-    @staticmethod
-    def write_mode_data(load_flags, cts_data, obj_data, sql_cur, local_infile):
+
+    def __init__(self):
+        self.sql_met = Run_Sql()
+
+    #@staticmethod
+    def write_mode_data(self, load_flags, cts_data, obj_data, sql_cur, local_infile):
         """ write mode files (cts and object) to a SQL database.
             Returns:
                N/A
         """
 
         logging.debug("[--- Start write_mode_sql ---]")
-
         write_time_start = time.perf_counter()
 
         try:
-
-            all_pair = pd.DataFrame()
-
-            sql_met = RunSql()
-
             # --------------------
             # Write Mode Headers
             # --------------------
@@ -67,7 +65,7 @@ class WriteModeSql:
             mode_headers[CN.MODE_HEADER_ID] = CN.NO_KEY
 
             # get the next valid mode header id. Set it to zero (first valid id) if no records yet
-            next_header_id = sql_met.get_next_id(CN.MODE_HEADER, CN.MODE_HEADER_ID, sql_cur)
+            next_header_id = self.sql_met.get_next_id(CN.MODE_HEADER, CN.MODE_HEADER_ID, sql_cur)
 
             # if the flag is set to check for duplicate headers, get ids from existing headers
             if load_flags["mode_header_db_check"]:
@@ -94,7 +92,7 @@ class WriteModeSql:
 
             # Write any new headers out to the sql database
             if not new_headers.empty:
-                sql_met.write_to_sql(new_headers, CN.MODE_HEADER_FIELDS, CN.MODE_HEADER,
+                self.sql_met.write_to_sql(new_headers, CN.MODE_HEADER_FIELDS, CN.MODE_HEADER,
                                      CN.INS_MHEADER, sql_cur, local_infile)
 
             # --------------------
@@ -108,7 +106,7 @@ class WriteModeSql:
                 cts_data = pd.merge(left=mode_headers, right=cts_data, on=CN.MODE_HEADER_KEYS)
                 # round off floats
                 cts_data = cts_data.round(decimals=5)
-                sql_met.write_to_sql(cts_data, CN.MODE_CTS_FIELDS, CN.MODE_CTS_T,
+                self.sql_met.write_to_sql(cts_data, CN.MODE_CTS_FIELDS, CN.MODE_CTS_T,
                                      CN.INS_CHEADER, sql_cur, local_infile)
 
             if not obj_data.empty:

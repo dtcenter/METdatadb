@@ -23,7 +23,7 @@ import getpass
 
 import constants as CN
 
-from run_sql import RunSql
+from run_sql import Run_Sql
 
 
 class WriteFileSql:
@@ -32,8 +32,9 @@ class WriteFileSql:
            N/A
     """
 
-    def __init__(self):
-        self.sql_met = RunSql()
+    def __init__(self, sql_met):
+        #self.sql_met = Run_Sql()
+        self.sql_met = sql_met
 
     def write_file_sql(self, load_flags, data_files, stat_data, mode_cts_data,
                        mode_obj_data, sql_cur, local_infile):

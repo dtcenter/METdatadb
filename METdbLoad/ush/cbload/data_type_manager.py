@@ -50,7 +50,6 @@ from couchbase.cluster import PasswordAuthenticator
 import data_type_builder as DTB
 
 
-# class Data_Type_Manager(Process):
 class Data_Type_Manager(Process):
     """
     Data_Type_Manager is a Thread that manages an object pool of Data_Type_builders to build lines from MET files

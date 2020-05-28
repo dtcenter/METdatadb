@@ -15,15 +15,78 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of Colorado, 
 # pylint:disable=no-member
 # constants exist in constants.py
 
-import sys
-import os
 import logging
+import os
+import sys
+from multiprocessing import Process
+
 import pymysql
 
 import constants as CN
 
 
-class RunSql:
+class Sql_Worker(Process):
+    """
+    Sql_Worker is a Multiprocess Thread that performs either a load data infile operation or a series of inserts.
+    These operations can be long lived and can also be concurrent so we do them in a process thread.
+    """
+
+    def __init__(self, conn, raw_data, col_list, sql_table, sql_query, sql_cur, local_infile):
+        # The Constructor for the RunCB class.
+        Process.__init__(self)
+        self.threadName = "worker-" + sql_table
+        self.conn = conn
+        self.raw_data = raw_data
+        self.col_list = col_list
+        self.sql_table = sql_table
+        self.sql_query = sql_query
+        self.sql_cur = sql_cur
+        self.local_infile = local_infile
+
+    def run(self):
+        """ given a dataframe of raw_data with specific columns to write to a sql_table,
+            write to a csv file and use local data infile for speed if allowed.
+            otherwise, do an executemany to use a SQL insert statement to write data
+            We do this in a separate process so that the database writes can happen in parallel,
+            this is possible because the load tables should be to different tables.
+        """
+        try:
+            if self.local_infile == 'ON':
+                # later in development, may wish to delete these files to clean up when done
+                # add the pid so that multiple processes won't overwrite data
+                _tmpfileName = ""
+                try:
+                    _tmpfileName = os.getenv('HOME') + '/METdbLoad_' + str(os.getpid()) + '_' + self.sql_table + '.csv'
+                    logging.info("processing Sql_Worker thread %s on pid %s", self.threadName, str(os.getpid()))
+                    # write the data out to a csv file, use local data infile to load to database
+                    self.raw_data[self.col_list].to_csv(_tmpfileName, na_rep=CN.MV_NOTAV,
+                                                        index=False, header=False, sep=CN.SEP)
+                    self.sql_cur.execute(CN.LD_TABLE.format(_tmpfileName, self.sql_table, CN.SEP))
+                    # remove the csv file
+                except:
+                    logging.error("*** %s in sqlWorker write_to_sql ***", sys.exc_info()[0])
+                finally:
+                    if os.path.exists(_tmpfileName):
+                        os.remove(_tmpfileName)
+            else:
+                # fewer permissions required, but slower
+                # Make sure there are no NaN values
+                raw_data = self.raw_data.fillna(CN.MV_NOTAV)
+                # only line_data has timestamps in dataframe - change to strings
+                if 'line_data' in self.sql_table:
+                    raw_data['fcst_valid_beg'] = raw_data['fcst_valid_beg'].astype(str)
+                    raw_data['fcst_valid_end'] = raw_data['fcst_valid_end'].astype(str)
+                    raw_data['fcst_init_beg'] = raw_data['fcst_init_beg'].astype(str)
+                    raw_data['obs_valid_beg'] = raw_data['obs_valid_beg'].astype(str)
+                    raw_data['obs_valid_end'] = raw_data['obs_valid_end'].astype(str)
+                # make a copy of the dataframe that is a list of lists and write to database
+                dfile = raw_data[self.col_list].values.tolist()
+                self.sql_cur.executemany(self.sql_query, dfile)
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s in sqlWorker write_to_sql ***", sys.exc_info()[0])
+
+
+class Run_Sql:
     """ Class to connect and disconnect to/from a SQL database
         Returns:
            N/A
@@ -34,55 +97,45 @@ class RunSql:
         self.local_infile = False
         self.conn = None
         self.cur = None
+        self.workerList = []
 
     def sql_on(self, connection):
         """ method to connect to a SQL database
             Returns:
                N/A
         """
-
         try:
-
-        # Connect to the database using connection info from XML file
+            # Connect to the database using connection info from XML file
             self.conn = pymysql.connect(host=connection['db_host'],
                                         port=connection['db_port'],
                                         user=connection['db_user'],
                                         passwd=connection['db_password'],
                                         db=connection['db_name'],
                                         local_infile=True)
-
         except pymysql.OperationalError as pop_err:
             logging.error("*** %s in run_sql ***", str(pop_err))
             sys.exit("*** Error when connecting to database")
-
         try:
-
             self.cur = self.conn.cursor()
-
         except (RuntimeError, TypeError, NameError, KeyError, AttributeError):
             logging.error("*** %s in run_sql ***", sys.exc_info()[0])
             sys.exit("*** Error when creating cursor")
-
         # look at database to see whether we can use the local infile method
         self.cur.execute("SHOW GLOBAL VARIABLES LIKE 'local_infile';")
         result = self.cur.fetchall()
         self.local_infile = result[0][1]
         logging.debug("local_infile is %s", result[0][1])
 
-    @staticmethod
-    def sql_off(conn, cur):
+    def sql_off(self, conn, cur):
         """ method to commit data and disconnect from a SQL database
             Returns:
                N/A
         """
-
         conn.commit()
-
         cur.close()
         conn.close()
 
-    @staticmethod
-    def get_next_id(table, field, sql_cur):
+    def get_next_id(self, table, field, sql_cur):
         """ given a field for a table, find the max field value and return it plus one.
             Returns:
                next valid id to use in an id field in a table
@@ -96,41 +149,14 @@ class RunSql:
             if result[0] is not None:
                 next_id = result[0] + 1
             return next_id
-
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in write_sql_data get_next_id ***", sys.exc_info()[0])
 
-    @staticmethod
-    def write_to_sql(raw_data, col_list, sql_table, sql_query, sql_cur, local_infile):
-        """ given a dataframe of raw_data with specific columns to write to a sql_table,
-            write to a csv file and use local data infile for speed if allowed.
-            otherwise, do an executemany to use a SQL insert statement to write data
-        """
-
+    def write_to_sql(self, raw_data, col_list, sql_table, sql_query, sql_cur, local_infile):
         try:
-            if local_infile == 'ON':
-                # later in development, may wish to delete these files to clean up when done
-                tmpfile = os.getenv('HOME') + '/METdbLoad_' + sql_table + '.csv'
-                # write the data out to a csv file, use local data infile to load to database
-                raw_data[col_list].to_csv(tmpfile, na_rep=CN.MV_NOTAV,
-                                          index=False, header=False, sep=CN.SEP)
-                sql_cur.execute(CN.LD_TABLE.format(tmpfile, sql_table, CN.SEP))
-            else:
-                # fewer permissions required, but slower
-                # Make sure there are no NaN values
-                raw_data = raw_data.fillna(CN.MV_NOTAV)
-
-                # only line_data has timestamps in dataframe - change to strings
-                if 'line_data' in sql_table:
-                    raw_data['fcst_valid_beg'] = raw_data['fcst_valid_beg'].astype(str)
-                    raw_data['fcst_valid_end'] = raw_data['fcst_valid_end'].astype(str)
-                    raw_data['fcst_init_beg'] = raw_data['fcst_init_beg'].astype(str)
-                    raw_data['obs_valid_beg'] = raw_data['obs_valid_beg'].astype(str)
-                    raw_data['obs_valid_end'] = raw_data['obs_valid_end'].astype(str)
-
-                # make a copy of the dataframe that is a list of lists and write to database
-                dfile = raw_data[col_list].values.tolist()
-                sql_cur.executemany(sql_query, dfile)
-
-        except (RuntimeError, TypeError, NameError, KeyError):
-            logging.error("*** %s in run_sql write_to_sql ***", sys.exc_info()[0])
+            worker = Sql_Worker(self.conn, raw_data, col_list, sql_table, sql_query, sql_cur, local_infile)
+            worker.start()
+            worker.join()
+        except:
+            e = sys.exc_info()
+            logging.error("*** %s Run_Sql error occurred in write_to_sql ***", e[0])

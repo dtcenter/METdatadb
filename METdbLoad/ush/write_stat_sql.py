@@ -24,16 +24,18 @@ import pandas as pd
 
 import constants as CN
 
-from run_sql import RunSql
+from run_sql import Run_Sql
 
 class WriteStatSql:
     """ Class to write stat files (MET and VSDB) to a SQL database
         Returns:
            N/A
     """
+    def __init__(self):
+        self.sql_met = Run_Sql()
 
-    @staticmethod
-    def write_sql_data(load_flags, stat_data, sql_cur, local_infile):
+    #@staticmethod
+    def write_sql_data(self, load_flags, stat_data, sql_cur, local_infile):
         """ write stat files (MET and VSDB) to a SQL database.
             Returns:
                N/A
@@ -44,9 +46,6 @@ class WriteStatSql:
         write_time_start = time.perf_counter()
 
         try:
-
-            sql_met = RunSql()
-
             # --------------------
             # Write Stat Headers
             # --------------------
@@ -60,7 +59,7 @@ class WriteStatSql:
             stat_headers[CN.STAT_HEADER_ID] = CN.NO_KEY
 
             # get the next valid stat header id. Set it to zero (first valid id) if no records yet
-            next_header_id = sql_met.get_next_id(CN.STAT_HEADER, CN.STAT_HEADER_ID, sql_cur)
+            next_header_id = self.sql_met.get_next_id(CN.STAT_HEADER, CN.STAT_HEADER_ID, sql_cur)
 
             # if the flag is set to check for duplicate headers, get ids from existing headers
             if load_flags["stat_header_db_check"]:
@@ -87,7 +86,7 @@ class WriteStatSql:
 
             # Write any new headers out to the sql database
             if not new_headers.empty:
-                sql_met.write_to_sql(new_headers, CN.STAT_HEADER_FIELDS, CN.STAT_HEADER,
+                self.sql_met.write_to_sql(new_headers, CN.STAT_HEADER_FIELDS, CN.STAT_HEADER,
                                      CN.INS_HEADER, sql_cur, local_infile)
 
             # put the header ids back into the dataframe of all the line data
@@ -125,7 +124,7 @@ class WriteStatSql:
                 if line_type in CN.VAR_LINE_TYPES:
                     # Get next valid line data id. Set it to zero (first valid id) if no records yet
                     next_line_id = \
-                        sql_met.get_next_id(line_table, CN.LINE_DATA_ID, sql_cur)
+                        self.sql_met.get_next_id(line_table, CN.LINE_DATA_ID, sql_cur)
                     logging.debug("next_line_id is %s", next_line_id)
 
                     # try to keep order the same as MVLoad
@@ -223,7 +222,7 @@ class WriteStatSql:
                                                            '5':'7', '7':'5'})
 
                             # Write out the ECNT lines created from old RHIST lines
-                            sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.ECNT],
+                            self.sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.ECNT],
                                                  CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.ECNT)],
                                                  CN.LINE_DATA_Q[CN.ECNT], sql_cur, local_infile)
 
@@ -233,13 +232,13 @@ class WriteStatSql:
 
                 # write the lines out to a CSV file, and then load them into database
                 if not line_data.empty:
-                    sql_met.write_to_sql(line_data, CN.LINE_DATA_COLS[line_type], line_table,
+                    self.sql_met.write_to_sql(line_data, CN.LINE_DATA_COLS[line_type], line_table,
                                          CN.LINE_DATA_Q[line_type], sql_cur, local_infile)
 
                 # if there are variable length records, write them out also
                 if not all_var.empty:
                     all_var.columns = CN.LINE_DATA_VAR_FIELDS[line_type]
-                    sql_met.write_to_sql(all_var, CN.LINE_DATA_VAR_FIELDS[line_type],
+                    self.sql_met.write_to_sql(all_var, CN.LINE_DATA_VAR_FIELDS[line_type],
                                          CN.LINE_DATA_VAR_TABLES[line_type],
                                          CN.LINE_DATA_VAR_Q[line_type], sql_cur, local_infile)
 
@@ -252,7 +251,7 @@ class WriteStatSql:
                                            stat_data[CN.FCST_PERC].notnull()].copy()
 
                     # Write out the PERC lines
-                    sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.PERC],
+                    self.sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.PERC],
                                          CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.PERC)],
                                          CN.LINE_DATA_Q[CN.PERC], sql_cur, local_infile)
 

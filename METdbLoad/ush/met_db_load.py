@@ -30,7 +30,7 @@ import constants as CN
 
 from read_load_xml import XmlLoadFile
 from read_data_files import ReadDataFiles
-from run_sql import RunSql
+from run_sql import Run_Sql
 from run_cb import RunCB
 from write_file_sql import WriteFileSql
 from write_stat_sql import WriteStatSql
@@ -104,6 +104,23 @@ def main():
     else:
         mid_file = last_file
 
+    # these get reused
+    # declare these outside so the finally works
+    cb_run = None
+    sql_run = None
+    if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
+        # for the first set of files, connect to the database
+        sql_run = Run_Sql()
+        sql_run.sql_on(xml_loadfile.connection)
+    elif xml_loadfile.connection['db_management_system'] in CN.CB:
+        cb_run = RunCB()
+        # establish bucket connection
+        logging.info("establishing cb bucket connection")
+        cb_run.cb_on(xml_loadfile.connection)
+
+    file_data = ReadDataFiles()
+    cts_lines = WriteModeSql()
+    set_count = 0
     while mid_file <= last_file:
         try:
             # Keep track of which set of files is being processed
@@ -125,7 +142,8 @@ def main():
         try:
 
             # instantiate a read data files object
-            file_data = ReadDataFiles()
+            #clean the dataframes in the ReadDataFiles object
+            file_data.clean()
 
             # read in the data files, with options specified by XML flags
             file_data.read_data(xml_loadfile.flags,
@@ -144,19 +162,10 @@ def main():
         #
         #  Write the data to a database
         #
-        # decalre these outside so the finally works
-        cb_run = None
-        sql_run = None
         try:
-
             if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
-                # for the first set of files, connect to the database
-                if set_count == 1:
-                    sql_run = RunSql()
-                    sql_run.sql_on(xml_loadfile.connection)
-
                 # write the data file records out. put data file ids into other dataframes
-                write_file = WriteFileSql()
+                write_file = WriteFileSql(sql_run)
                 updated_data = write_file.write_file_sql(xml_loadfile.flags,
                                                          file_data.data_files,
                                                          file_data.stat_data,
@@ -185,7 +194,6 @@ def main():
                                               sql_run.local_infile)
 
                 if not file_data.mode_cts_data.empty or not file_data.mode_obj_data.empty:
-                    cts_lines = WriteModeSql()
 
                     cts_lines.write_mode_data(xml_loadfile.flags,
                                               file_data.mode_cts_data,
@@ -206,10 +214,6 @@ def main():
                         sql_run.sql_off(sql_run.conn, sql_run.cur)
 
             elif xml_loadfile.connection['db_management_system'] in CN.CB:
-                cb_run = RunCB()
-                # establish bucket connection
-                logging.info("establishing cb bucket connection")
-                cb_run.cb_on(xml_loadfile.connection)
                 #write_documents(file_data.stat_data)
                 logging.info("writing cb documents")
                 cb_run.write_cb(file_data)

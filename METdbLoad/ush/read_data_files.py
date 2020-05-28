@@ -41,6 +41,13 @@ class ReadDataFiles:
         self.mode_obj_data = pd.DataFrame()
         self.data_files = pd.DataFrame()
 
+    def clean(self):
+        self.cache = {}
+        self.stat_data = self.stat_data.iloc[0:0]
+        self.mode_cts_data = self.mode_cts_data.iloc[0:0]
+        self.mode_obj_data = self.mode_obj_data.iloc[0:0]
+        self.data_files = self.data_files.iloc[0:0]
+
     def read_data(self, load_flags, load_files, line_types):
         """ Read in data files as given in load_spec file.
             Returns:
