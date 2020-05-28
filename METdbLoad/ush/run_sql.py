@@ -15,11 +15,12 @@ Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of Colorado, 
 # pylint:disable=no-member
 # constants exist in constants.py
 
-import logging
-import os
 import sys
+import os
+import logging
+import time
+from datetime import timedelta
 from multiprocessing import Process
-
 import pymysql
 
 import constants as CN
@@ -79,6 +80,7 @@ class Sql_Worker(Process):
                     raw_data['fcst_init_beg'] = raw_data['fcst_init_beg'].astype(str)
                     raw_data['obs_valid_beg'] = raw_data['obs_valid_beg'].astype(str)
                     raw_data['obs_valid_end'] = raw_data['obs_valid_end'].astype(str)
+
                 # make a copy of the dataframe that is a list of lists and write to database
                 dfile = raw_data[self.col_list].values.tolist()
                 self.sql_cur.executemany(self.sql_query, dfile)
@@ -97,29 +99,35 @@ class Run_Sql:
         self.local_infile = False
         self.conn = None
         self.cur = None
-        self.workerList = []
 
     def sql_on(self, connection):
         """ method to connect to a SQL database
             Returns:
                N/A
         """
+
         try:
-            # Connect to the database using connection info from XML file
+
+        # Connect to the database using connection info from XML file
             self.conn = pymysql.connect(host=connection['db_host'],
                                         port=connection['db_port'],
                                         user=connection['db_user'],
                                         passwd=connection['db_password'],
                                         db=connection['db_name'],
                                         local_infile=True)
+
         except pymysql.OperationalError as pop_err:
             logging.error("*** %s in run_sql ***", str(pop_err))
             sys.exit("*** Error when connecting to database")
+
         try:
+
             self.cur = self.conn.cursor()
+
         except (RuntimeError, TypeError, NameError, KeyError, AttributeError):
             logging.error("*** %s in run_sql ***", sys.exc_info()[0])
             sys.exit("*** Error when creating cursor")
+
         # look at database to see whether we can use the local infile method
         self.cur.execute("SHOW GLOBAL VARIABLES LIKE 'local_infile';")
         result = self.cur.fetchall()
@@ -131,7 +139,9 @@ class Run_Sql:
             Returns:
                N/A
         """
+
         conn.commit()
+
         cur.close()
         conn.close()
 
@@ -149,10 +159,16 @@ class Run_Sql:
             if result[0] is not None:
                 next_id = result[0] + 1
             return next_id
-        except (RuntimeError, TypeError, NameError, KeyError):
+
+        except (RuntimeError, TypeError, NameError, KeyError, AttributeError):
             logging.error("*** %s in write_sql_data get_next_id ***", sys.exc_info()[0])
 
     def write_to_sql(self, raw_data, col_list, sql_table, sql_query, sql_cur, local_infile):
+        """ given a dataframe of raw_data with specific columns to write to a sql_table,
+            write to a csv file and use local data infile for speed if allowed.
+            otherwise, do an executemany to use a SQL insert statement to write data
+        """
+
         try:
             worker = Sql_Worker(self.conn, raw_data, col_list, sql_table, sql_query, sql_cur, local_infile)
             worker.start()
@@ -160,3 +176,36 @@ class Run_Sql:
         except:
             e = sys.exc_info()
             logging.error("*** %s Run_Sql error occurred in write_to_sql ***", e[0])
+
+    def apply_indexes(self, drop, sql_cur):
+        """
+        If user sets tag apply_indexes to true, try to create all indexes
+        If user sets tag drop_indexes to true, try to drop all indexes
+        """
+        logging.debug("[--- Start apply_indexes ---]")
+
+        apply_time_start = time.perf_counter()
+
+        try:
+            if drop:
+                sql_array = CN.DROP_INDEXES_QUERIES
+                logging.info("--- *** --- Dropping Indexes --- *** ---")
+            else:
+                sql_array = CN.CREATE_INDEXES_QUERIES
+                logging.info("--- *** --- Loading Indexes --- *** ---")
+
+            for sql_cmd in sql_array:
+                sql_cur.execute(sql_cmd)
+
+        except pymysql.InternalError:
+            if drop:
+                logging.error("*** Index to drop does not exist in run_sql apply_indexes ***")
+            else:
+                logging.error("*** Index to add already exists in run_sql apply_indexes ***")
+
+        apply_time_end = time.perf_counter()
+        apply_time = timedelta(seconds=apply_time_end - apply_time_start)
+
+        logging.info("    >>> Apply time: %s", str(apply_time))
+
+        logging.debug("[--- End apply_indexes ---]")

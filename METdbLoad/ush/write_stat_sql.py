@@ -51,8 +51,9 @@ class WriteStatSql:
             # --------------------
 
             # find the unique headers for this current load job
-            # for now, including VERSION to make pandas code easier - unlike MVLoad
-            stat_headers = stat_data[CN.STAT_HEADER_KEYS].drop_duplicates()
+            # Do not include Version, as MVLoad does not
+            stat_headers = stat_data[CN.STAT_HEADER_KEYS].copy()
+            stat_headers.drop_duplicates(CN.STAT_HEADER_KEYS[1:], keep='first', inplace=True)
             stat_headers.reset_index(drop=True, inplace=True)
 
             # At first, we do not know if the headers already exist, so we have no keys
@@ -66,7 +67,7 @@ class WriteStatSql:
 
                 # For each header, query with unique fields to try to find a match in the database
                 for row_num, data_line in stat_headers.iterrows():
-                    sql_cur.execute(CN.Q_HEADER, data_line.values[:-1].tolist())
+                    sql_cur.execute(CN.Q_HEADER, data_line.values[1:-1].tolist())
                     result = sql_cur.fetchone()
 
                     # If you find a match, put the key into the stat_headers dataframe
@@ -90,7 +91,13 @@ class WriteStatSql:
                                      CN.INS_HEADER, sql_cur, local_infile)
 
             # put the header ids back into the dataframe of all the line data
-            stat_data = pd.merge(left=stat_data, right=stat_headers)
+            stat_data = pd.merge(left=stat_data, right=stat_headers, on=CN.STAT_HEADER_KEYS[1:])
+            # Merging with limited keys renames the version column, change it back
+            if 'version_x' in stat_data.columns:
+                stat_data = stat_data.rename(columns={'version_x': CN.VERSION})
+            # Clean out the headers working dataframes
+            stat_headers = stat_headers.iloc[0:0]
+            new_headers = new_headers.iloc[0:0]
 
             # --------------------
             # Write Line Data
@@ -114,11 +121,6 @@ class WriteStatSql:
 
                 # change all Not Available values to METviewer not available (-9999)
                 line_data = line_data.replace('NA', CN.MV_NOTAV)
-
-                # change float numbers to have limited digits after the decimal point
-                # line_data = np.round(line_data, decimals=7)
-                line_data[CN.COL_NUMS[3:]] = line_data[CN.COL_NUMS[3:]].astype(float)
-                line_data = line_data.round(decimals=5)
 
                 # Only variable length lines have a line_data_id
                 if line_type in CN.VAR_LINE_TYPES:
@@ -150,6 +152,10 @@ class WriteStatSql:
                         # these two variable line types are one group short
                         if line_type in [CN.PJC, CN.PRC]:
                             var_count = var_count - 1
+
+                        # VSDB and STAT values for sets of repeating vars may be different
+                        if line_type == 'CN.ECLV':
+                            var_count = var_index - 1
 
                         # reset to original value
                         var_index = orig_index

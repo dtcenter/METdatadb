@@ -48,11 +48,17 @@ EQS = '='
 # Forward Slash
 FWD_SLASH = '/'
 
+# Underscore
+U_SCORE = '_'
+
 # Left paren for searching
 L_PAREN = '('
 
 # Right paren for searching
 R_PAREN = ')'
+
+# Triple zero for tests for MODE files
+T_ZERO = '000'
 
 # Generic count of variable fields
 N_VAR = 'n_var'
@@ -98,6 +104,8 @@ RELP = "RELP"      # Relative Position
 ECNT = "ECNT"      # Ensemble Continuous Statistics - only for HiRA
 ENSCNT = "ENSCNT"  #
 PERC = "PERC"      #
+DMAP = "DMAP"      # Distance Map
+RPS = "RPS"        # Ranked Probability Score
 
 # VSDB line types
 BSS = "BSS"        # same as PSTD
@@ -105,20 +113,21 @@ RELI = "RELI"      # same as PCT
 HIST = "HIST"      # same as RHIST
 ECON = "ECON"      # same as ECLV
 RMSE = "RMSE"      # same as CNT
-RPS = "RPS"        # same as ENSCNT
 FSS = "FSS"        # same as NBRCNT
 # VSDB version of FHO goes to CTC
+# VSDB version of RPS goes to ENSCNT
 # VSDB versions of RELP, SL1L2, SAL1L2, VL1L2, VAL1L2, and GRAD do not change
 
 UC_LINE_TYPES = [FHO, CTC, CTS, MCTC, MCTS, CNT, SL1L2, SAL1L2, VL1L2, VAL1L2,
                  PCT, PSTD, PJC, PRC, ECLV, MPR, NBRCTC, NBRCTS, NBRCNT, ISC,
-                 RHIST, PHIST, ORANK, SSVAR, GRAD, VCNT, RELP, ECNT, ENSCNT, PERC]
+                 RHIST, PHIST, ORANK, SSVAR, GRAD, VCNT, RELP, ECNT, ENSCNT, PERC,
+                 DMAP, RPS]
 
 LC_LINE_TYPES = [ltype.lower() for ltype in UC_LINE_TYPES]
 
 LINE_TABLES = ['line_data_' + hname for hname in LC_LINE_TYPES]
 
-ALPHA_LINE_TYPES = [CTS, CNT, PSTD, NBRCTS, NBRCNT, MCTS, SSVAR, VCNT]
+ALPHA_LINE_TYPES = [CTS, NBRCTS, NBRCNT, MCTS, SSVAR, VCNT, DMAP, RPS, CNT, PSTD]
 
 COV_THRESH_LINE_TYPES = [NBRCTC, NBRCTS, PCT, PSTD, PJC, PRC]
 
@@ -189,7 +198,7 @@ Q_FILE = "SELECT data_file_id FROM data_file WHERE " + \
          "path=%s AND filename=%s"
 
 Q_HEADER = "SELECT stat_header_id FROM stat_header WHERE " + \
-           "=%s AND ".join(STAT_HEADER_KEYS) + "=%s"
+           "=%s AND ".join(STAT_HEADER_KEYS[1:]) + "=%s"
 
 Q_METADATA = "SELECT category, description FROM metadata"
 
@@ -214,6 +223,8 @@ FY_OY = 'fy_oy'
 FY_ON = 'fy_on'
 FN_OY = 'fn_oy'
 FN_ON = 'fn_on'
+BASER = 'baser'
+FMEAN = 'fmean'
 
 INSTANCE_INFO = 'instance_info'
 INSTANCE_INFO_ID = 'instance_info_id'
@@ -221,11 +232,7 @@ INSTANCE_INFO_ID = 'instance_info_id'
 DATA_FILE_FIELDS = [DATA_FILE_ID, DATA_FILE_LU_ID, FILENAME, FILEPATH,
                     LOAD_DATE, MOD_DATE]
 
-STAT_HEADER_FIELDS = [STAT_HEADER_ID, VERSION, MODEL, DESCR,
-                      FCST_VAR, FCST_UNITS, FCST_LEV,
-                      OBS_VAR, OBS_UNITS, OBS_LEV,
-                      OBTYPE, VX_MASK, INTERP_MTHD, INTERP_PNTS,
-                      FCST_THRESH, OBS_THRESH]
+STAT_HEADER_FIELDS = [STAT_HEADER_ID] + STAT_HEADER_KEYS
 
 VALUE_SLOTS = '%s, ' * len(STAT_HEADER_FIELDS)
 VALUE_SLOTS = VALUE_SLOTS[:-2]
@@ -303,8 +310,8 @@ LINE_DATA_FIELDS[CTC] = TOT_LINE_DATA_FIELDS + \
                         [FY_OY, FY_ON, FN_OY, FN_ON]
 
 LINE_DATA_FIELDS[CTS] = ALPH_LINE_DATA_FIELDS + \
-                        ['baser', 'baser_ncl', 'baser_ncu', 'baser_bcl', 'baser_bcu',
-                         'fmean', 'fmean_ncl', 'fmean_ncu', 'fmean_bcl', 'fmean_bcu',
+                        [BASER, 'baser_ncl', 'baser_ncu', 'baser_bcl', 'baser_bcu',
+                         FMEAN, 'fmean_ncl', 'fmean_ncu', 'fmean_bcl', 'fmean_bcu',
                          'acc', 'acc_ncl', 'acc_ncu', 'acc_bcl', 'acc_bcu',
                          'fbias', 'fbias_bcl', 'fbias_bcu',
                          'pody', 'pody_ncl', 'pody_ncu', 'pody_bcl', 'pody_bcu',
@@ -324,8 +331,14 @@ LINE_DATA_FIELDS[CTS] = ALPH_LINE_DATA_FIELDS + \
                          'sedi', 'sedi_ncl', 'sedi_ncu', 'sedi_bcl', 'sedi_bcu',
                          'bagss', 'bagss_bcl', 'bagss_bcu']
 
+LINE_DATA_FIELDS[DMAP] = ALPH_LINE_DATA_FIELDS + \
+                         ['fy', 'oy', 'fbias', 'baddeley', 'hausdorff',
+                          'med_fo', 'med_of', 'med_min', 'med_max', 'med_mean',
+                          'fom_fo', 'fom_of', 'fom_min', 'fom_max', 'fom_mean',
+                          'zhu_fo', 'zhu_of', 'zhu_min', 'zhu_max', 'zhu_mean']
+
 LINE_DATA_FIELDS[ECLV] = TOT_LINE_DATA_FIELDS + \
-                         ['baser', 'value_baser', 'n_pnt']
+                         [BASER, 'value_baser', 'n_pnt']
 
 LINE_DATA_FIELDS[ECNT] = TOT_LINE_DATA_FIELDS + \
                          ['n_ens', 'crps', 'crpss', 'ign', 'me', 'rmse', 'spread',
@@ -372,8 +385,8 @@ LINE_DATA_FIELDS[NBRCTC] = COV_LINE_DATA_FIELDS + \
                            [FY_OY, FY_ON, FN_OY, FN_ON]
 
 LINE_DATA_FIELDS[NBRCTS] = COVA_LINE_DATA_FIELDS + \
-                           ['baser', 'baser_ncl', 'baser_ncu', 'baser_bcl', 'baser_bcu',
-                            'fmean', 'fmean_ncl', 'fmean_ncu', 'fmean_bcl', 'fmean_bcu',
+                           [BASER, 'baser_ncl', 'baser_ncu', 'baser_bcl', 'baser_bcu',
+                            FMEAN, 'fmean_ncl', 'fmean_ncu', 'fmean_bcl', 'fmean_bcu',
                             'acc', 'acc_ncl', 'acc_ncu', 'acc_bcl', 'acc_bcu',
                             'fbias', 'fbias_bcl', 'fbias_bcu',
                             'pody', 'pody_ncl', 'pody_ncu', 'pody_bcl', 'pody_bcu',
@@ -415,7 +428,7 @@ LINE_DATA_FIELDS[PRC] = COV_LINE_DATA_FIELDS + \
 
 # the last 5 fields are currently (August 2019) blank in stat files, filled in in write_stat_sql
 LINE_DATA_FIELDS[PSTD] = COVA_LINE_DATA_FIELDS + \
-                         ['n_thresh', 'baser', 'baser_ncl', 'baser_ncu',
+                         ['n_thresh', BASER, 'baser_ncl', 'baser_ncu',
                           'reliability', 'resolution', 'uncertainty', 'roc_auc',
                           'brier', 'brier_ncl', 'brier_ncu', 'briercl', 'briercl_ncl',
                           'briercl_ncu', 'bss', 'bss_smpl']
@@ -425,6 +438,10 @@ LINE_DATA_FIELDS[RELP] = TOT_LINE_DATA_FIELDS + \
 
 LINE_DATA_FIELDS[RHIST] = TOT_LINE_DATA_FIELDS + \
                           ['n_rank']
+
+LINE_DATA_FIELDS[RPS] = ALPH_LINE_DATA_FIELDS + \
+                         ['n_prob', 'rps_rel', 'rps_res', 'rps_unc', 'rps',
+                          'rpss', 'rpss_smpl', 'rps_comp']
 
 LINE_DATA_FIELDS[SL1L2] = TOT_LINE_DATA_FIELDS + \
                           ['fbar', 'obar', 'fobar', 'ffbar', 'oobar', 'mae']
@@ -590,7 +607,12 @@ MTD_3D_SS = 12
 # mode file fields
 MODE_HEADER = 'mode_header'
 MODE_HEADER_ID = 'mode_header_id'
+MODE_OBJ_ID = 'mode_obj_id'
+MODE_OBJ_OBS_ID = 'mode_obj_obs_id'
+MODE_OBJ_FCST_ID = 'mode_obj_fcst_id'
 MODE_CTS_T = 'mode_cts'
+MODE_SINGLE_T = 'mode_obj_single'
+MODE_PAIR_T = 'mode_obj_pair'
 LINE_TYPE_LU_ID = 'line_type_lu_id'
 LINENUMBER = 'linenumber'
 FCST_VALID = 'fcst_valid'
@@ -602,9 +624,19 @@ OBS_VALID = 'obs_valid'
 OBS_ACCUM = 'obs_accum'
 OBS_RAD = 'obs_rad'
 OBS_THR = 'obs_thr'
-OBJECT_ID = 'object_id'
 N_VALID = 'n_valid'
 GRID_RES = 'grid_res'
+OBJECT_ID = 'object_id'
+OBJECT_CAT = 'object_cat'
+FCST_FLAG = 'fcst_flag'
+SIMPLE_FLAG = 'simple_flag'
+MATCHED_FLAG = 'matched_flag'
+F_OBJECT_ID = 'f_object_id'
+O_OBJECT_ID = 'o_object_id'
+F_OBJECT_CAT = 'f_object_cat'
+O_OBJECT_CAT = 'o_object_cat'
+ASPECT_DIFF = 'aspect_diff'
+CURV_RATIO = 'curvature_ratio'
 
 MODE_HEADER_KEYS = [VERSION, MODEL, N_VALID, GRID_RES, DESCR,
                     FCST_LEAD, FCST_VALID, FCST_ACCUM, FCST_INIT,
@@ -612,25 +644,269 @@ MODE_HEADER_KEYS = [VERSION, MODEL, N_VALID, GRID_RES, DESCR,
                     OBS_RAD, OBS_THR, FCST_VAR, FCST_UNITS, FCST_LEV,
                     OBS_VAR, OBS_UNITS, OBS_LEV]
 
-MODE_HEADER_FIELDS = [MODE_HEADER_ID, LINE_TYPE_LU_ID, DATA_FILE_ID, LINENUMBER,
-                      VERSION, MODEL, N_VALID, GRID_RES, DESCR,
-                      FCST_LEAD, FCST_VALID, FCST_ACCUM, FCST_INIT,
-                      OBS_LEAD, OBS_VALID, OBS_ACCUM, FCST_RAD, FCST_THR,
-                      OBS_RAD, OBS_THR, FCST_VAR, FCST_UNITS, FCST_LEV,
-                      OBS_VAR, OBS_UNITS, OBS_LEV]
+MODE_HEADER_FIELDS = [MODE_HEADER_ID, LINE_TYPE_LU_ID, DATA_FILE_ID,
+                      LINENUMBER] + MODE_HEADER_KEYS
 
 MODE_CTS_FIELDS = [MODE_HEADER_ID, 'field', TOTAL_LC, FY_OY, FY_ON, FN_OY, FN_ON,
-                   'baser', 'fmean', 'acc', 'fbias', 'pody', 'podn', 'pofd',
+                   BASER, FMEAN, 'acc', 'fbias', 'pody', 'podn', 'pofd',
                    'far', 'csi', 'gss', 'hk', 'hss', 'odds']
 
+MODE_SINGLE_FIELDS = [MODE_OBJ_ID, MODE_HEADER_ID, OBJECT_ID, OBJECT_CAT,
+                      'centroid_x', 'centroid_y', 'centroid_lat', 'centroid_lon',
+                      'axis_avg', 'length', 'width', 'area', 'area_thresh',
+                      'curvature', 'curvature_x', 'curvature_y', 'complexity',
+                      'intensity_10', 'intensity_25', 'intensity_50', 'intensity_75',
+                      'intensity_90', 'intensity_nn', 'intensity_sum',
+                      FCST_FLAG, SIMPLE_FLAG, MATCHED_FLAG]
+
+MODE_PAIR_FIELDS = [MODE_OBJ_OBS_ID, MODE_OBJ_FCST_ID, MODE_HEADER_ID, OBJECT_ID,
+                    OBJECT_CAT, 'centroid_dist', 'boundary_dist', 'convex_hull_dist',
+                    'angle_diff', ASPECT_DIFF, 'area_ratio',
+                    'intersection_area', 'union_area', 'symmetric_diff',
+                    'intersection_over_area', CURV_RATIO, 'complexity_ratio',
+                    'percentile_intensity_ratio', 'interest', SIMPLE_FLAG, MATCHED_FLAG]
+
 Q_MHEADER = "SELECT mode_header_id FROM mode_header WHERE " + \
-           "=%s AND ".join(MODE_HEADER_KEYS) + "=%s"
+            "=%s AND ".join(MODE_HEADER_KEYS) + "=%s"
+
+QN_MHEADER = "SELECT mode_header_id FROM mode_header WHERE " + \
+             "version=%s AND model=%s AND n_valid is NULL AND grid_res is NULL " + \
+             "AND descr=%s AND fcst_lead=%s AND fcst_valid=%s AND fcst_accum=%s " + \
+             "AND fcst_init=%s AND obs_lead=%s AND obs_valid=%s AND obs_accum=%s " + \
+             "AND fcst_rad=%s AND fcst_thr=%s AND obs_rad=%s AND obs_thr=%s " + \
+             "AND fcst_var=%s AND fcst_units=%s AND fcst_lev=%s AND obs_var=%s " + \
+             "AND obs_units=%s AND obs_lev=%s"
 
 INS_MHEADER = "INSERT INTO mode_header (" + ",".join(MODE_HEADER_FIELDS) + \
-             ") VALUES (" + VALUE_SLOTS + ")"
+              ") VALUES (" + VALUE_SLOTS + ")"
 
 C_VALUE_SLOTS = '%s, ' * len(MODE_CTS_FIELDS)
 C_VALUE_SLOTS = C_VALUE_SLOTS[:-2]
 
 INS_CHEADER = "INSERT INTO mode_cts (" + ",".join(MODE_CTS_FIELDS) + \
               ") VALUES (" + C_VALUE_SLOTS + ")"
+
+S_VALUE_SLOTS = '%s, ' * len(MODE_SINGLE_FIELDS)
+S_VALUE_SLOTS = S_VALUE_SLOTS[:-2]
+
+INS_SHEADER = "INSERT INTO mode_obj_single (" + ",".join(MODE_SINGLE_FIELDS) + \
+              ") VALUES (" + S_VALUE_SLOTS + ")"
+
+P_VALUE_SLOTS = '%s, ' * len(MODE_PAIR_FIELDS)
+P_VALUE_SLOTS = P_VALUE_SLOTS[:-2]
+
+INS_PHEADER = "INSERT INTO mode_obj_pair (" + ",".join(MODE_PAIR_FIELDS) + \
+              ") VALUES (" + P_VALUE_SLOTS + ")"
+
+DROP_INDEXES_QUERIES = ["DROP INDEX stat_header_model_idx ON stat_header",
+                        "DROP INDEX stat_header_fcst_var_idx ON stat_header",
+                        "DROP INDEX stat_header_fcst_lev_idx ON stat_header",
+                        "DROP INDEX stat_header_obtype_idx ON stat_header",
+                        "DROP INDEX stat_header_vx_mask_idx ON stat_header",
+                        "DROP INDEX stat_header_interp_mthd_idx ON stat_header",
+                        "DROP INDEX stat_header_interp_pnts_idx ON stat_header",
+                        "DROP INDEX stat_header_fcst_thresh_idx ON stat_header",
+                        "DROP INDEX mode_header_model_idx ON mode_header",
+                        "DROP INDEX mode_header_fcst_lead_idx ON mode_header",
+                        "DROP INDEX mode_header_fcst_valid_idx ON mode_header",
+                        "DROP INDEX mode_header_fcst_init_idx ON mode_header",
+                        "DROP INDEX mode_header_fcst_rad_idx ON mode_header",
+                        "DROP INDEX mode_header_fcst_thr_idx ON mode_header",
+                        "DROP INDEX mode_header_fcst_var_idx ON mode_header",
+                        "DROP INDEX mode_header_fcst_lev_idx ON mode_header",
+                        "DROP INDEX mtd_header_model_idx ON mtd_header",
+                        "DROP INDEX mtd_header_fcst_lead_idx ON mtd_header",
+                        "DROP INDEX mtd_header_fcst_valid_idx ON mtd_header",
+                        "DROP INDEX mtd_header_fcst_init_idx ON mtd_header",
+                        "DROP INDEX mtd_header_fcst_rad_idx ON mtd_header",
+                        "DROP INDEX mtd_header_fcst_thr_idx ON mtd_header",
+                        "DROP INDEX mtd_header_fcst_var_idx ON mtd_header",
+                        "DROP INDEX mtd_header_fcst_lev_idx ON mtd_header",
+                        "DROP INDEX line_data_fho_fcst_lead_idx ON line_data_fho",
+                        "DROP INDEX line_data_fho_fcst_valid_beg_idx ON line_data_fho",
+                        "DROP INDEX line_data_fho_fcst_init_beg_idx ON line_data_fho",
+                        "DROP INDEX line_data_ctc_fcst_lead_idx ON line_data_ctc",
+                        "DROP INDEX line_data_ctc_fcst_valid_beg_idx ON line_data_ctc",
+                        "DROP INDEX line_data_ctc_fcst_init_beg_idx ON line_data_ctc",
+                        "DROP INDEX line_data_cts_fcst_lead_idx ON line_data_cts",
+                        "DROP INDEX line_data_cts_fcst_valid_beg_idx ON line_data_cts",
+                        "DROP INDEX line_data_cts_fcst_init_beg_idx ON line_data_cts",
+                        "DROP INDEX line_data_cnt_fcst_lead_idx ON line_data_cnt",
+                        "DROP INDEX line_data_cnt_fcst_valid_beg_idx ON line_data_cnt",
+                        "DROP INDEX line_data_cnt_fcst_init_beg_idx ON line_data_cnt",
+                        "DROP INDEX line_data_pct_fcst_lead_idx ON line_data_pct",
+                        "DROP INDEX line_data_pct_fcst_valid_beg_idx ON line_data_pct",
+                        "DROP INDEX line_data_pct_fcst_init_beg_idx ON line_data_pct",
+                        "DROP INDEX line_data_pstd_fcst_lead_idx ON line_data_pstd",
+                        "DROP INDEX line_data_pstd_fcst_valid_beg_idx ON line_data_pstd",
+                        "DROP INDEX line_data_pstd_fcst_init_beg_idx ON line_data_pstd",
+                        "DROP INDEX line_data_pjc_fcst_lead_idx ON line_data_pjc",
+                        "DROP INDEX line_data_pjc_fcst_valid_beg_idx ON line_data_pjc",
+                        "DROP INDEX line_data_pjc_fcst_init_beg_idx ON line_data_pjc",
+                        "DROP INDEX line_data_prc_fcst_lead_idx ON line_data_prc",
+                        "DROP INDEX line_data_prc_fcst_valid_beg_idx ON line_data_prc",
+                        "DROP INDEX line_data_prc_fcst_init_beg_idx ON line_data_prc",
+                        "DROP INDEX line_data_sl1l2_fcst_lead_idx ON line_data_sl1l2",
+                        "DROP INDEX line_data_sl1l2_fcst_valid_beg_idx ON line_data_sl1l2",
+                        "DROP INDEX line_data_sl1l2_fcst_init_beg_idx ON line_data_sl1l2",
+                        "DROP INDEX line_data_sal1l2_fcst_lead_idx ON line_data_sal1l2",
+                        "DROP INDEX line_data_sal1l2_fcst_valid_beg_idx ON line_data_sal1l2",
+                        "DROP INDEX line_data_sal1l2_fcst_init_beg_idx ON line_data_sal1l2",
+                        "DROP INDEX line_data_vl1l2_fcst_lead_idx ON line_data_vl1l2",
+                        "DROP INDEX line_data_vl1l2_fcst_valid_beg_idx ON line_data_vl1l2",
+                        "DROP INDEX line_data_vl1l2_fcst_init_beg_idx ON line_data_vl1l2",
+                        "DROP INDEX line_data_val1l2_fcst_lead_idx ON line_data_val1l2",
+                        "DROP INDEX line_data_val1l2_fcst_valid_beg_idx ON line_data_val1l2",
+                        "DROP INDEX line_data_val1l2_fcst_init_beg_idx ON line_data_val1l2",
+                        "DROP INDEX line_data_mpr_fcst_lead_idx ON line_data_mpr",
+                        "DROP INDEX line_data_mpr_fcst_valid_beg_idx ON line_data_mpr",
+                        "DROP INDEX line_data_mpr_fcst_init_beg_idx ON line_data_mpr",
+                        "DROP INDEX line_data_nbrctc_fcst_lead_idx ON line_data_nbrctc",
+                        "DROP INDEX line_data_nbrctc_fcst_valid_beg_idx ON line_data_nbrctc",
+                        "DROP INDEX line_data_nbrctc_fcst_init_beg_idx ON line_data_nbrctc",
+                        "DROP INDEX line_data_nbrcts_fcst_lead_idx ON line_data_nbrcts",
+                        "DROP INDEX line_data_nbrcts_fcst_valid_beg_idx ON line_data_nbrcts",
+                        "DROP INDEX line_data_nbrcts_fcst_init_beg_idx ON line_data_nbrcts",
+                        "DROP INDEX line_data_nbrcnt_fcst_lead_idx ON line_data_nbrcnt",
+                        "DROP INDEX line_data_nbrcnt_fcst_valid_beg_idx ON line_data_nbrcnt",
+                        "DROP INDEX line_data_nbrcnt_fcst_init_beg_idx ON line_data_nbrcnt",
+                        "DROP INDEX line_data_isc_fcst_lead_idx ON line_data_isc",
+                        "DROP INDEX line_data_isc_fcst_valid_beg_idx ON line_data_isc",
+                        "DROP INDEX line_data_isc_fcst_init_beg_idx ON line_data_isc",
+                        "DROP INDEX line_data_mctc_fcst_lead_idx ON line_data_mctc",
+                        "DROP INDEX line_data_mctc_fcst_valid_beg_idx ON line_data_mctc",
+                        "DROP INDEX line_data_mctc_fcst_init_beg_idx ON line_data_mctc",
+                        "DROP INDEX line_data_rhist_fcst_lead_idx ON line_data_rhist",
+                        "DROP INDEX line_data_rhist_fcst_valid_beg_idx ON line_data_rhist",
+                        "DROP INDEX line_data_rhist_fcst_init_beg_idx ON line_data_rhist",
+                        "DROP INDEX line_data_orank_fcst_lead_idx ON line_data_orank",
+                        "DROP INDEX line_data_orank_fcst_valid_beg_idx ON line_data_orank",
+                        "DROP INDEX line_data_orank_fcst_init_beg_idx ON line_data_orank",
+                        "DROP INDEX line_data_relp_fcst_lead_idx ON line_data_relp",
+                        "DROP INDEX line_data_relp_fcst_valid_beg_idx ON line_data_relp",
+                        "DROP INDEX line_data_relp_fcst_init_beg_idx ON line_data_relp",
+                        "DROP INDEX line_data_eclv_fcst_lead_idx ON line_data_eclv",
+                        "DROP INDEX line_data_eclv_fcst_valid_beg_idx ON line_data_eclv",
+                        "DROP INDEX line_data_eclv_fcst_init_beg_idx ON line_data_eclv",
+                        "DROP INDEX line_data_ssvar_fcst_lead_idx ON line_data_ssvar",
+                        "DROP INDEX line_data_ssvar_fcst_valid_beg_idx ON line_data_ssvar",
+                        "DROP INDEX line_data_ssvar_fcst_init_beg_idx ON line_data_ssvar",
+                        "DROP INDEX line_data_enscnt_fcst_lead_idx ON line_data_enscnt",
+                        "DROP INDEX line_data_enscnt_fcst_valid_beg_idx ON line_data_enscnt",
+                        "DROP INDEX line_data_enscnt_fcst_init_beg_idx ON line_data_enscnt",
+                        "DROP INDEX line_data_grad_fcst_lead_idx ON line_data_grad",
+                        "DROP INDEX line_data_grad_fcst_valid_beg_idx ON line_data_grad",
+                        "DROP INDEX line_data_grad_fcst_init_beg_idx ON line_data_grad",
+                        "DROP INDEX line_data_dmap_fcst_lead_idx ON line_data_dmap",
+                        "DROP INDEX line_data_dmap_fcst_valid_beg_idx ON line_data_dmap",
+                        "DROP INDEX line_data_dmap_fcst_init_beg_idx ON line_data_dmap",
+                        "DROP INDEX line_data_rps_fcst_lead_idx ON line_data_rps",
+                        "DROP INDEX line_data_rps_fcst_valid_beg_idx ON line_data_rps",
+                        "DROP INDEX line_data_rps_fcst_init_beg_idx ON line_data_rps"]
+
+CREATE_INDEXES_QUERIES = \
+    ["CREATE INDEX stat_header_model_idx ON stat_header (model)",
+     "CREATE INDEX stat_header_fcst_var_idx ON stat_header (fcst_var)",
+     "CREATE INDEX stat_header_fcst_lev_idx ON stat_header (fcst_lev)",
+     "CREATE INDEX stat_header_obtype_idx ON stat_header (obtype)",
+     "CREATE INDEX stat_header_vx_mask_idx ON stat_header (vx_mask)",
+     "CREATE INDEX stat_header_interp_mthd_idx ON stat_header (interp_mthd)",
+     "CREATE INDEX stat_header_interp_pnts_idx ON stat_header (interp_pnts)",
+     "CREATE INDEX stat_header_fcst_thresh_idx ON stat_header (fcst_thresh)",
+     "CREATE INDEX mode_header_model_idx ON mode_header (model)",
+     "CREATE INDEX mode_header_fcst_lead_idx ON mode_header (fcst_lead)",
+     "CREATE INDEX mode_header_fcst_valid_idx ON mode_header (fcst_valid)",
+     "CREATE INDEX mode_header_fcst_init_idx ON mode_header (fcst_init)",
+     "CREATE INDEX mode_header_fcst_rad_idx ON mode_header (fcst_rad)",
+     "CREATE INDEX mode_header_fcst_thr_idx ON mode_header (fcst_thr)",
+     "CREATE INDEX mode_header_fcst_var_idx ON mode_header (fcst_var)",
+     "CREATE INDEX mode_header_fcst_lev_idx ON mode_header (fcst_lev)",
+     "CREATE INDEX mtd_header_model_idx ON mtd_header (model)",
+     "CREATE INDEX mtd_header_fcst_lead_idx ON mtd_header (fcst_lead)",
+     "CREATE INDEX mtd_header_fcst_valid_idx ON mtd_header (fcst_valid)",
+     "CREATE INDEX mtd_header_fcst_init_idx ON mtd_header (fcst_init)",
+     "CREATE INDEX mtd_header_fcst_rad_idx ON mtd_header (fcst_rad)",
+     "CREATE INDEX mtd_header_fcst_thr_idx ON mtd_header (fcst_thr)",
+     "CREATE INDEX mtd_header_fcst_var_idx ON mtd_header (fcst_var)",
+     "CREATE INDEX mtd_header_fcst_lev_idx ON mtd_header (fcst_lev)",
+     "CREATE INDEX line_data_fho_fcst_lead_idx ON line_data_fho (fcst_lead)",
+     "CREATE INDEX line_data_fho_fcst_valid_beg_idx ON line_data_fho (fcst_valid_beg)",
+     "CREATE INDEX line_data_fho_fcst_init_beg_idx ON line_data_fho (fcst_init_beg)",
+     "CREATE INDEX line_data_ctc_fcst_lead_idx ON line_data_ctc (fcst_lead)",
+     "CREATE INDEX line_data_ctc_fcst_valid_beg_idx ON line_data_ctc (fcst_valid_beg)",
+     "CREATE INDEX line_data_ctc_fcst_init_beg_idx ON line_data_ctc (fcst_init_beg)",
+     "CREATE INDEX line_data_cts_fcst_lead_idx ON line_data_cts (fcst_lead)",
+     "CREATE INDEX line_data_cts_fcst_valid_beg_idx ON line_data_cts (fcst_valid_beg)",
+     "CREATE INDEX line_data_cts_fcst_init_beg_idx ON line_data_cts (fcst_init_beg)",
+     "CREATE INDEX line_data_cnt_fcst_lead_idx ON line_data_cnt (fcst_lead)",
+     "CREATE INDEX line_data_cnt_fcst_valid_beg_idx ON line_data_cnt (fcst_valid_beg)",
+     "CREATE INDEX line_data_cnt_fcst_init_beg_idx ON line_data_cnt (fcst_init_beg)",
+     "CREATE INDEX line_data_pct_fcst_lead_idx ON line_data_pct (fcst_lead)",
+     "CREATE INDEX line_data_pct_fcst_valid_beg_idx ON line_data_pct (fcst_valid_beg)",
+     "CREATE INDEX line_data_pct_fcst_init_beg_idx ON line_data_pct (fcst_init_beg)",
+     "CREATE INDEX line_data_pstd_fcst_lead_idx ON line_data_pstd (fcst_lead)",
+     "CREATE INDEX line_data_pstd_fcst_valid_beg_idx ON line_data_pstd (fcst_valid_beg)",
+     "CREATE INDEX line_data_pstd_fcst_init_beg_idx ON line_data_pstd (fcst_init_beg)",
+     "CREATE INDEX line_data_pjc_fcst_lead_idx ON line_data_pjc (fcst_lead)",
+     "CREATE INDEX line_data_pjc_fcst_valid_beg_idx ON line_data_pjc (fcst_valid_beg)",
+     "CREATE INDEX line_data_pjc_fcst_init_beg_idx ON line_data_pjc (fcst_init_beg)",
+     "CREATE INDEX line_data_prc_fcst_lead_idx ON line_data_prc (fcst_lead)",
+     "CREATE INDEX line_data_prc_fcst_valid_beg_idx ON line_data_prc (fcst_valid_beg)",
+     "CREATE INDEX line_data_prc_fcst_init_beg_idx ON line_data_prc (fcst_init_beg)",
+     "CREATE INDEX line_data_sl1l2_fcst_lead_idx ON line_data_sl1l2 (fcst_lead)",
+     "CREATE INDEX line_data_sl1l2_fcst_valid_beg_idx ON line_data_sl1l2 (fcst_valid_beg)",
+     "CREATE INDEX line_data_sl1l2_fcst_init_beg_idx ON line_data_sl1l2 (fcst_init_beg)",
+     "CREATE INDEX line_data_sal1l2_fcst_lead_idx ON line_data_sal1l2 (fcst_lead)",
+     "CREATE INDEX line_data_sal1l2_fcst_valid_beg_idx ON line_data_sal1l2 (fcst_valid_beg)",
+     "CREATE INDEX line_data_sal1l2_fcst_init_beg_idx ON line_data_sal1l2 (fcst_init_beg)",
+     "CREATE INDEX line_data_vl1l2_fcst_lead_idx ON line_data_vl1l2 (fcst_lead)",
+     "CREATE INDEX line_data_vl1l2_fcst_valid_beg_idx ON line_data_vl1l2 (fcst_valid_beg)",
+     "CREATE INDEX line_data_vl1l2_fcst_init_beg_idx ON line_data_vl1l2 (fcst_init_beg)",
+     "CREATE INDEX line_data_val1l2_fcst_lead_idx ON line_data_val1l2 (fcst_lead)",
+     "CREATE INDEX line_data_val1l2_fcst_valid_beg_idx ON line_data_val1l2 (fcst_valid_beg)",
+     "CREATE INDEX line_data_val1l2_fcst_init_beg_idx ON line_data_val1l2 (fcst_init_beg)",
+     "CREATE INDEX line_data_mpr_fcst_lead_idx ON line_data_mpr (fcst_lead)",
+     "CREATE INDEX line_data_mpr_fcst_valid_beg_idx ON line_data_mpr (fcst_valid_beg)",
+     "CREATE INDEX line_data_mpr_fcst_init_beg_idx ON line_data_mpr (fcst_init_beg)",
+     "CREATE INDEX line_data_nbrctc_fcst_lead_idx ON line_data_nbrctc (fcst_lead)",
+     "CREATE INDEX line_data_nbrctc_fcst_valid_beg_idx ON line_data_nbrctc (fcst_valid_beg)",
+     "CREATE INDEX line_data_nbrctc_fcst_init_beg_idx ON line_data_nbrctc (fcst_init_beg)",
+     "CREATE INDEX line_data_nbrcts_fcst_lead_idx ON line_data_nbrcts (fcst_lead)",
+     "CREATE INDEX line_data_nbrcts_fcst_valid_beg_idx ON line_data_nbrcts (fcst_valid_beg)",
+     "CREATE INDEX line_data_nbrcts_fcst_init_beg_idx ON line_data_nbrcts (fcst_init_beg)",
+     "CREATE INDEX line_data_nbrcnt_fcst_lead_idx ON line_data_nbrcnt (fcst_lead)",
+     "CREATE INDEX line_data_nbrcnt_fcst_valid_beg_idx ON line_data_nbrcnt (fcst_valid_beg)",
+     "CREATE INDEX line_data_nbrcnt_fcst_init_beg_idx ON line_data_nbrcnt (fcst_init_beg)",
+     "CREATE INDEX line_data_isc_fcst_lead_idx ON line_data_isc (fcst_lead)",
+     "CREATE INDEX line_data_isc_fcst_valid_beg_idx ON line_data_isc (fcst_valid_beg)",
+     "CREATE INDEX line_data_isc_fcst_init_beg_idx ON line_data_isc (fcst_init_beg)",
+     "CREATE INDEX line_data_mctc_fcst_lead_idx ON line_data_mctc (fcst_lead)",
+     "CREATE INDEX line_data_mctc_fcst_valid_beg_idx ON line_data_mctc (fcst_valid_beg)",
+     "CREATE INDEX line_data_mctc_fcst_init_beg_idx ON line_data_mctc (fcst_init_beg)",
+     "CREATE INDEX line_data_rhist_fcst_lead_idx ON line_data_rhist (fcst_lead)",
+     "CREATE INDEX line_data_rhist_fcst_valid_beg_idx ON line_data_rhist (fcst_valid_beg)",
+     "CREATE INDEX line_data_rhist_fcst_init_beg_idx ON line_data_rhist (fcst_init_beg)",
+     "CREATE INDEX line_data_orank_fcst_lead_idx ON line_data_orank (fcst_lead)",
+     "CREATE INDEX line_data_orank_fcst_valid_beg_idx ON line_data_orank (fcst_valid_beg)",
+     "CREATE INDEX line_data_orank_fcst_init_beg_idx ON line_data_orank (fcst_init_beg)",
+     "CREATE INDEX line_data_relp_fcst_lead_idx ON line_data_relp (fcst_lead)",
+     "CREATE INDEX line_data_relp_fcst_valid_beg_idx ON line_data_relp (fcst_valid_beg)",
+     "CREATE INDEX line_data_relp_fcst_init_beg_idx ON line_data_relp (fcst_init_beg)",
+     "CREATE INDEX line_data_eclv_fcst_lead_idx ON line_data_eclv (fcst_lead)",
+     "CREATE INDEX line_data_eclv_fcst_valid_beg_idx ON line_data_eclv (fcst_valid_beg)",
+     "CREATE INDEX line_data_eclv_fcst_init_beg_idx ON line_data_eclv (fcst_init_beg)",
+     "CREATE INDEX line_data_ssvar_fcst_lead_idx ON line_data_ssvar (fcst_lead)",
+     "CREATE INDEX line_data_ssvar_fcst_valid_beg_idx ON line_data_ssvar (fcst_valid_beg)",
+     "CREATE INDEX line_data_ssvar_fcst_init_beg_idx ON line_data_ssvar (fcst_init_beg)",
+     "CREATE INDEX line_data_enscnt_fcst_lead_idx ON line_data_enscnt (fcst_lead)",
+     "CREATE INDEX line_data_enscnt_fcst_valid_beg_idx ON line_data_enscnt (fcst_valid_beg)",
+     "CREATE INDEX line_data_enscnt_fcst_init_beg_idx ON line_data_enscnt (fcst_init_beg)",
+     "CREATE INDEX line_data_grad_fcst_lead_idx ON line_data_grad (fcst_lead)",
+     "CREATE INDEX line_data_grad_fcst_valid_beg_idx ON line_data_grad (fcst_valid_beg)",
+     "CREATE INDEX line_data_grad_fcst_init_beg_idx ON line_data_grad (fcst_init_beg)",
+     "CREATE INDEX line_data_dmap_fcst_lead_idx ON line_data_dmap (fcst_lead)",
+     "CREATE INDEX line_data_dmap_fcst_valid_beg_idx ON line_data_dmap (fcst_valid_beg)",
+     "CREATE INDEX line_data_dmap_fcst_init_beg_idx ON line_data_dmap (fcst_init_beg)",
+     "CREATE INDEX line_data_rps_fcst_lead_idx ON line_data_rps (fcst_lead)",
+     "CREATE INDEX line_data_rps_fcst_valid_beg_idx ON line_data_rps (fcst_valid_beg)",
+     "CREATE INDEX line_data_rps_fcst_init_beg_idx ON line_data_rps (fcst_init_beg)"]

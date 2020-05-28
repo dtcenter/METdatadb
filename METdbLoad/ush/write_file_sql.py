@@ -33,7 +33,6 @@ class WriteFileSql:
     """
 
     def __init__(self, sql_met):
-        #self.sql_met = Run_Sql()
         self.sql_met = sql_met
 
     def write_file_sql(self, load_flags, data_files, stat_data, mode_cts_data,
@@ -70,7 +69,7 @@ class WriteFileSql:
 
                 # If you find a match, check the force_dup_file tag/flag
                 if sql_cur.rowcount > 0:
-                    list_dupes = list_dupes + [row_num]
+                    list_dupes = list_dupes + [file_line[CN.FILE_ROW]]
                     if not load_flags['force_dup_file']:
                         logging.warning("!!! Duplicate file %s without FORCE_DUP_FILE tag",
                                         file_line[CN.FULL_FILE])
@@ -103,7 +102,7 @@ class WriteFileSql:
                                            inplace=True)
 
                 if not mode_obj_data.empty and list_dupes:
-                    if mode_cts_data.file_row.isin(list_dupes).any():
+                    if mode_obj_data.file_row.isin(list_dupes).any():
                         mode_obj_data.drop(mode_obj_data[mode_obj_data.file_row
                                                          .isin(list_dupes)].index,
                                            inplace=True)

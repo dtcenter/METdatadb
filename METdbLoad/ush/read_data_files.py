@@ -70,7 +70,6 @@ class ReadDataFiles:
         all_vsdb = pd.DataFrame()
         all_cts = pd.DataFrame()
         all_single = pd.DataFrame()
-        # all_pair = pd.DataFrame()
         list_frames = []
         list_vsdb = []
         list_cts = []
@@ -239,6 +238,10 @@ class ReadDataFiles:
                         hdr_names = file_hdr.columns.tolist()
                         hdr_names = [hdr.lower() for hdr in hdr_names]
 
+                        # change field name after intensity_90 to be intensity_nn
+                        if 'intensity_90' in hdr_names:
+                            hdr_names[hdr_names.index('intensity_90') + 1] = 'intensity_nn'
+
                         # read the file
                         mode_file = self.read_mode(filename, hdr_names)
 
@@ -252,6 +255,12 @@ class ReadDataFiles:
                             mode_file.insert(3, CN.GRID_RES, CN.MV_NULL)
                         if CN.DESCR not in hdr_names:
                             mode_file.insert(4, CN.DESCR, CN.NOTAV)
+
+                        if CN.ASPECT_DIFF not in hdr_names:
+                            mode_file[CN.ASPECT_DIFF] = CN.MV_NOTAV
+
+                        if CN.CURV_RATIO not in hdr_names:
+                            mode_file[CN.CURV_RATIO] = CN.MV_NOTAV
 
                         # add units if input file does not have them
                         if CN.FCST_UNITS not in hdr_names:
@@ -313,6 +322,7 @@ class ReadDataFiles:
             # added sort=False on 10/21/19 because that will be new default behavior
             if list_frames:
                 all_stat = pd.concat(list_frames, ignore_index=True, sort=False)
+                list_frames = []
 
                 # if a fcst percentage thresh is used, it is in parens in fcst_thresh
                 if all_stat.fcst_thresh.str.contains(CN.L_PAREN, regex=False).any():
@@ -322,7 +332,7 @@ class ReadDataFiles:
                                  CN.FCST_PERC] = \
                         all_stat.loc[all_stat.fcst_thresh.str.contains(CN.L_PAREN, regex=False) &
                                      all_stat.fcst_thresh.str.contains(CN.R_PAREN, regex=False),
-                                     CN.FCST_THRESH].str.split(CN.L_PAREN, regex=False).str[1]. \
+                                     CN.FCST_THRESH].str.split(CN.L_PAREN).str[1]. \
                             str.split(CN.R_PAREN).str[0].astype(float)
                     # remove the percentage from fcst_thresh
                     all_stat.loc[all_stat.fcst_thresh.str.contains(CN.L_PAREN, regex=False) &
@@ -350,8 +360,9 @@ class ReadDataFiles:
                                      CN.OBS_THRESH].str.split(CN.L_PAREN).str[0]
 
                 # These warnings and transforms only apply to stat files
-                # give a warning message with data if value of alpha for an alpha line type is NA
-                alpha_lines = all_stat[(all_stat.line_type.isin(CN.ALPHA_LINE_TYPES)) &
+                # Give a warning message with data if value of alpha for an alpha line type is NA
+                # Do not check CNT and PSTD, even though they are alpha line types
+                alpha_lines = all_stat[(all_stat.line_type.isin(CN.ALPHA_LINE_TYPES[:-2])) &
                                        (all_stat.alpha == CN.NOTAV)].line_type
                 if not alpha_lines.empty:
                     logging.warning("!!! ALPHA line_type has ALPHA value of NA:\r\n %s",
@@ -382,6 +393,22 @@ class ReadDataFiles:
                 if all_stat[CN.LINE_TYPE].eq(CN.PCT).any():
                     all_stat.loc[all_stat.line_type == CN.PCT, '1'] = \
                         all_stat.loc[all_stat.line_type == CN.PCT, '1'] - 1
+
+                # RPS lines in stat files may be missing rps_comp
+                # if rps_comp IS null and rps is NOT null,
+                # set rps_comp to 1 minus rps
+                if all_stat[CN.LINE_TYPE].eq(CN.RPS).any():
+                    all_stat.loc[(all_stat.line_type == CN.RPS) & \
+                                 (all_stat['8'].isnull()) & \
+                                 (~all_stat['5'].isnull()), '8'] = \
+                        1 - all_stat.loc[(all_stat.line_type == CN.RPS) & \
+                                         (all_stat['8'].isnull()) & \
+                                         (~all_stat['5'].isnull()), '5']
+
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s in read_data if list_frames ***", sys.exc_info()[0])
+
+        try:
 
             # collect vsdb files separately so additional transforms can be done
             if list_vsdb:
@@ -588,8 +615,8 @@ class ReadDataFiles:
                             last_point = last_point - 1
                         one_file = vsdb_data[CN.LONG_HEADER + [CN.TOTAL_LC] +
                                              CN.COL_NAS[:2] + [CN.N_VAR] +
-                                             CN.COL_NUMS[0:35] +
-                                             CN.COL_NAS[:57] + [CN.LINE_NUM, CN.FILE_ROW]]
+                                             CN.COL_NUMS[0:36] +
+                                             CN.COL_NAS[:56] + [CN.LINE_NUM, CN.FILE_ROW]]
 
                     elif vsdb_type == CN.PSTD:
                         one_file = vsdb_data[CN.LONG_HEADER + [CN.TOTAL_LC] +
@@ -661,13 +688,19 @@ class ReadDataFiles:
                 # end for vsdb_type
 
                 # Clear out all_vsdb, which we copied from above, line_type by line_type
-                all_vsdb = pd.DataFrame()
+                all_vsdb = all_vsdb.iloc[0:0]
                 # combine stat and vsdb
                 all_vsdb = pd.concat(list_vsdb, ignore_index=True, sort=False)
                 all_stat = pd.concat([all_stat, all_vsdb], ignore_index=True, sort=False)
+                all_vsdb = all_vsdb.iloc[0:0]
 
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s in read_data if list_vsdb ***", sys.exc_info()[0])
+
+        try:
             if list_cts:
                 all_cts = pd.concat(list_cts, ignore_index=True, sort=False)
+                list_cts = []
 
                 # Copy forecast lead times, without trailing 0000 if they have them
                 all_cts[CN.FCST_LEAD_HR] = \
@@ -684,10 +717,12 @@ class ReadDataFiles:
                 all_cts[CN.LINE_TYPE_LU_ID] = 19
 
                 self.mode_cts_data = all_cts
+                all_cts = all_cts.iloc[0:0]
 
             if list_obj:
                 # gather all mode lines
                 all_single = pd.concat(list_obj, ignore_index=True, sort=False)
+                list_obj = []
 
                 # Copy forecast lead times, without trailing 0000 if they have them
                 all_single[CN.FCST_LEAD_HR] = \
@@ -708,14 +743,11 @@ class ReadDataFiles:
                                CN.LINE_TYPE_LU_ID] = 18
 
                 self.mode_obj_data = all_single
-
-                # maybe this should be done in a write routine
-                # all_pair = all_single[all_single[CN.OBJECT_ID].str.contains('_')]
-                # all_single = \
-                #    all_single.drop(all_single[all_single[CN.OBJECT_ID].str.contains('_')].index)
+                all_single = all_single.iloc[0:0]
 
         except (RuntimeError, TypeError, NameError, KeyError):
-            logging.error("*** %s in read_data middle ***", sys.exc_info()[0])
+            logging.error("*** %s in read_data if list_cts or list_obj ***",
+                          sys.exc_info()[0])
 
         try:
             if not all_stat.empty:
@@ -731,27 +763,30 @@ class ReadDataFiles:
                     logging.warning("line types: %s",
                                     str(all_stat.iloc[invalid_line_indexes].line_type))
 
-                    all_stat = all_stat.drop(invalid_line_indexes, axis=0)
+                    all_stat.drop(invalid_line_indexes, axis=0, inplace=True)
 
                 # if user specified line types to load, delete the rest
                 if load_flags["line_type_load"]:
-                    all_stat = all_stat.drop(all_stat[~all_stat.line_type.isin(line_types)].index)
+                    all_stat.drop(all_stat[~all_stat.line_type.isin(line_types)].index,
+                                  inplace=True)
 
                 # if load_spec has flag to not load MPR records, delete them
                 if not load_flags["load_mpr"]:
-                    all_stat = all_stat.drop(all_stat[all_stat.line_type == CN.MPR].index)
+                    all_stat.drop(all_stat[all_stat.line_type == CN.MPR].index, inplace=True)
 
                 # if load_spec has flag to not load ORANK records, delete them
                 if not load_flags["load_orank"]:
-                    all_stat = all_stat.drop(all_stat[all_stat.line_type == CN.ORANK].index)
+                    all_stat.drop(all_stat[all_stat.line_type == CN.ORANK].index, inplace=True)
 
                 # reset the index, in case any lines have been deleted
                 all_stat.reset_index(drop=True, inplace=True)
 
-                # all lines from a file may have been deleted. if so, remove filename
+                # if all lines from a stat or vsdb file were deleted, remove filename
                 files_to_drop = ~self.data_files.index.isin(all_stat[CN.FILE_ROW])
-                self.data_files = \
-                    self.data_files.drop(self.data_files[files_to_drop].index)
+                files_stat = self.data_files[CN.DATA_FILE_LU_ID].isin([CN.VSDB_POINT_STAT,
+                                                                       CN.STAT])
+                self.data_files.drop(self.data_files[files_to_drop & files_stat].index,
+                                     inplace=True)
 
                 self.data_files.reset_index(drop=True, inplace=True)
 
@@ -769,6 +804,7 @@ class ReadDataFiles:
                 logging.debug("Shape of all_stat after transforms: %s", str(all_stat.shape))
 
                 self.stat_data = all_stat
+                all_stat = all_stat.iloc[0:0]
 
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in read_data near end ***", sys.exc_info()[0])

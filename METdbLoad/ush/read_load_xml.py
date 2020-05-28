@@ -139,8 +139,8 @@ class XmlLoadFile:
                     if child.text.lower() == CN.LC_TRUE:
                         self.flags['drop_indexes'] = True
                 elif child.tag.lower() == "apply_indexes":
-                    if child.text.lower() == CN.LC_FALSE:
-                        self.flags['apply_indexes'] = False
+                    if child.text.lower() == CN.LC_TRUE:
+                        self.flags['apply_indexes'] = True
                 elif child.tag.lower() == "stat_header_db_check":
                     if child.text.lower() == CN.LC_FALSE:
                         self.flags['stat_header_db_check'] = False

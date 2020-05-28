@@ -24,14 +24,12 @@ import time
 from datetime import datetime
 from datetime import timedelta
 import sys
-#import yappi # multi-threaded profiler
 
 import constants as CN
 
 from read_load_xml import XmlLoadFile
 from read_data_files import ReadDataFiles
 from run_sql import Run_Sql
-from run_cb import RunCB
 from write_file_sql import WriteFileSql
 from write_stat_sql import WriteStatSql
 from write_mode_sql import WriteModeSql
@@ -75,9 +73,24 @@ def main():
         logging.error("*** %s occurred in Main reading XML ***", sys.exc_info()[0])
         sys.exit("*** Error reading XML")
 
-    # if -index is used, only process the index
-    if args.index:
-        logging.debug("-index is true - only process index")
+    #
+    # If argument -index is used, only process the index
+    #
+    if args.index and xml_loadfile.flags["apply_indexes"]:
+        try:
+            if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
+                sql_run = RunSql()
+                sql_run.sql_on(xml_loadfile.connection)
+                sql_run.apply_indexes(False, sql_run.cur)
+                logging.debug("-index is true - only process index")
+                if sql_run.conn.open:
+                    sql_run.sql_off(sql_run.conn, sql_run.cur)
+            sys.exit("*** Only processing index with -index as argument")
+        except (RuntimeError, TypeError, NameError, KeyError, AttributeError):
+            if sql_run.conn.open:
+                sql_run.sql_off(sql_run.conn, sql_run.cur)
+            logging.error("*** %s occurred in Main processing index ***", sys.exc_info()[0])
+            sys.exit("*** Error processing index")
 
     #
     #  Purge files if flags set to not load certain types of files
@@ -106,17 +119,11 @@ def main():
 
     # these get reused
     # declare these outside so the finally works
-    cb_run = None
     sql_run = None
     if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
         # for the first set of files, connect to the database
         sql_run = Run_Sql()
         sql_run.sql_on(xml_loadfile.connection)
-    elif xml_loadfile.connection['db_management_system'] in CN.CB:
-        cb_run = RunCB()
-        # establish bucket connection
-        logging.info("establishing cb bucket connection")
-        cb_run.cb_on(xml_loadfile.connection)
 
     file_data = ReadDataFiles()
     cts_lines = WriteModeSql()
@@ -134,7 +141,6 @@ def main():
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s occurred in Main setting up loop ***", sys.exc_info()[0])
             sys.exit("*** Error when setting up loop")
-
 
         #
         #  Read the data files
@@ -155,6 +161,7 @@ def main():
                 # move indices to the next set of files
                 first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
                 continue
+
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s occurred in Main reading data ***", sys.exc_info()[0])
             sys.exit("*** Error when reading data files")
@@ -163,6 +170,7 @@ def main():
         #  Write the data to a database
         #
         try:
+
             if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
                 # write the data file records out. put data file ids into other dataframes
                 write_file = WriteFileSql(sql_run)
@@ -183,7 +191,6 @@ def main():
                     logging.warning("!!! No data to load in current set %s", str(set_count))
                     # move indices to the next set of files
                     first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
-                    continue
 
                 if not file_data.stat_data.empty:
                     stat_lines = WriteStatSql()
@@ -193,7 +200,7 @@ def main():
                                               sql_run.cur,
                                               sql_run.local_infile)
 
-                if not file_data.mode_cts_data.empty or not file_data.mode_obj_data.empty:
+                if (not file_data.mode_cts_data.empty) or not (file_data.mode_obj_data.empty):
 
                     cts_lines.write_mode_data(xml_loadfile.flags,
                                               file_data.mode_cts_data,
@@ -201,22 +208,24 @@ def main():
                                               sql_run.cur,
                                               sql_run.local_infile)
 
+                # Processing for the last set of data
                 if mid_file >= last_file:
-                    write_file.write_metadata_sql(xml_loadfile.flags,
-                                                  file_data.data_files,
-                                                  xml_loadfile.group,
-                                                  xml_loadfile.description,
-                                                  xml_loadfile.load_note,
-                                                  xml_loadfile.xml_str,
-                                                  sql_run.cur)
+                    # If any data was written, write to the metadata and instance_info tables
+                    if not file_data.data_files.empty:
+                        write_file.write_metadata_sql(xml_loadfile.flags,
+                                                      file_data.data_files,
+                                                      xml_loadfile.group,
+                                                      xml_loadfile.description,
+                                                      xml_loadfile.load_note,
+                                                      xml_loadfile.xml_str,
+                                                      sql_run.cur)
+
+                    #  if apply_indexes is set to true, load the indexes
+                    if xml_loadfile.flags["apply_indexes"]:
+                        sql_run.apply_indexes(False, sql_run.cur)
 
                     if sql_run.conn.open:
                         sql_run.sql_off(sql_run.conn, sql_run.cur)
-
-            elif xml_loadfile.connection['db_management_system'] in CN.CB:
-                #write_documents(file_data.stat_data)
-                logging.info("writing cb documents")
-                cb_run.write_cb(file_data)
 
             # move indices to the next set of files
             first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
@@ -228,10 +237,6 @@ def main():
             if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
                 if sql_run.conn.open:
                     sql_run.sql_off(sql_run.conn, sql_run.cur)
-            elif xml_loadfile.connection['db_management_system'] in CN.CB:
-                if cb_run.conn:
-                    cb_run.cb_off(cb_run.conn)
-
 
     load_time_end = time.perf_counter()
     load_time = timedelta(seconds=load_time_end - load_time_start)
@@ -291,8 +296,4 @@ def purge_files(load_files, xml_flags):
 
 
 if __name__ == '__main__':
-#    yappi.set_clock_type("cpu")  # Use set_clock_type("wall") for wall time
-#    yappi.start()
     main()
-#    yappi.get_func_stats().print_all()
-#    yappi.get_thread_stats().print_all()
