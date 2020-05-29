@@ -31,10 +31,11 @@ class WriteModeSql:
            N/A
     """
 
-    def __init__(self):
-        self.sql_met = Run_Sql()
+    def __init__(self,connection):
+        self.sql_mode = Run_Sql()
+        self.sql_mode.sql_on(connection)
 
-    def write_mode_data(self, load_flags, cts_data, obj_data, sql_cur, local_infile):
+    def write_mode_data(self, load_flags, cts_data, obj_data):
         """ write mode files (cts and object) to a SQL database.
             Returns:
                N/A
@@ -45,10 +46,7 @@ class WriteModeSql:
         write_time_start = time.perf_counter()
 
         try:
-
             all_pair = pd.DataFrame()
-
-            sql_met = RunSql()
 
             # --------------------
             # Write Mode Headers
@@ -70,7 +68,7 @@ class WriteModeSql:
             mode_headers[CN.MODE_HEADER_ID] = CN.NO_KEY
 
             # get the next valid mode header id. Set it to zero (first valid id) if no records yet
-            next_header_id = self.sql_met.get_next_id(CN.MODE_HEADER, CN.MODE_HEADER_ID, sql_cur)
+            next_header_id = self.sql_mode.get_next_id(CN.MODE_HEADER, CN.MODE_HEADER_ID)
 
             # if the flag is set to check for duplicate headers, get ids from existing headers
             if load_flags["mode_header_db_check"]:
@@ -83,15 +81,15 @@ class WriteModeSql:
                     data_line[CN.OBS_VALID] = data_line[CN.OBS_VALID].strftime("%Y-%m-%d %H:%M:%S")
                     # when n_valid and grid_res are null, query needs 'is null'
                     if data_line[CN.N_VALID] == CN.MV_NULL and data_line[CN.GRID_RES] == CN.MV_NULL:
-                        sql_cur.execute(CN.QN_MHEADER,
-                                        [data_line[CN.VERSION],
+                        self.sql_mode.cur.execute(CN.QN_MHEADER,
+                                                  [data_line[CN.VERSION],
                                          data_line[CN.MODEL]] + data_line.values[7:-1].tolist())
                     else:
-                        sql_cur.execute(CN.Q_MHEADER, data_line.values[3:-1].tolist())
-                    result = sql_cur.fetchone()
+                        self.sql_mode.cur.execute(CN.Q_MHEADER, data_line.values[3:-1].tolist())
+                    result = self.sql_mode.cur.fetchone()
 
                     # If you find a match, put the key into the mode_headers dataframe
-                    if sql_cur.rowcount > 0:
+                    if self.sql_mode.cur.rowcount > 0:
                         mode_headers.loc[mode_headers.index[row_num], CN.MODE_HEADER_ID] = result[0]
                     # otherwise create the next id and put it in
                     else:
@@ -108,8 +106,8 @@ class WriteModeSql:
 
             # Write any new headers out to the sql database
             if not new_headers.empty:
-                self.sql_met.write_to_sql(new_headers, CN.MODE_HEADER_FIELDS, CN.MODE_HEADER,
-                                     CN.INS_MHEADER, sql_cur, local_infile)
+                self.sql_mode.write_to_sql(new_headers, CN.MODE_HEADER_FIELDS, CN.MODE_HEADER,
+                                           CN.INS_MHEADER)
 
             # --------------------
             # Write Line Data
@@ -121,8 +119,8 @@ class WriteModeSql:
                 # put the header ids back into the dataframes
                 cts_data = pd.merge(left=mode_headers, right=cts_data, on=CN.MODE_HEADER_KEYS)
 
-                self.sql_met.write_to_sql(cts_data, CN.MODE_CTS_FIELDS, CN.MODE_CTS_T,
-                                     CN.INS_CHEADER, sql_cur, local_infile)
+                self.sql_mode.write_to_sql(cts_data, CN.MODE_CTS_FIELDS, CN.MODE_CTS_T,
+                                           CN.INS_CHEADER)
 
             if not obj_data.empty:
                 # MET has a different column name than METviewer
@@ -147,7 +145,7 @@ class WriteModeSql:
                 obj_data.reset_index(drop=True, inplace=True)
 
                 # get next valid mode object id. Set it to zero (first valid id) if no records yet
-                next_line_id = sql_met.get_next_id(CN.MODE_SINGLE_T, CN.MODE_OBJ_ID, sql_cur)
+                next_line_id = self.sql_mode.get_next_id(CN.MODE_SINGLE_T, CN.MODE_OBJ_ID)
 
                 # create the mode_obj_ids using the dataframe index and next valid id
                 obj_data[CN.MODE_OBJ_ID] = obj_data.index + next_line_id
@@ -175,8 +173,8 @@ class WriteModeSql:
                                      CN.MATCHED_FLAG] = 1
 
                 # write out the mode single objects
-                sql_met.write_to_sql(obj_data, CN.MODE_SINGLE_FIELDS, CN.MODE_SINGLE_T,
-                                     CN.INS_SHEADER, sql_cur, local_infile)
+                self.sql_mode.write_to_sql(obj_data, CN.MODE_SINGLE_FIELDS, CN.MODE_SINGLE_T,
+                                     CN.INS_SHEADER)
             if not all_pair.empty:
 
                 all_pair.reset_index(drop=True, inplace=True)
@@ -224,8 +222,8 @@ class WriteModeSql:
                                      CN.MATCHED_FLAG] = 1
 
                 # write out the mode pair objects
-                sql_met.write_to_sql(all_pair, CN.MODE_PAIR_FIELDS, CN.MODE_PAIR_T,
-                                     CN.INS_PHEADER, sql_cur, local_infile)
+                self.sql_mode.write_to_sql(all_pair, CN.MODE_PAIR_FIELDS, CN.MODE_PAIR_T,
+                                           CN.INS_PHEADER)
 
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in write_mode_sql ***", sys.exc_info()[0])

@@ -31,11 +31,11 @@ class WriteStatSql:
         Returns:
            N/A
     """
-    def __init__(self):
+    def __init__(self, connection):
         self.sql_met = Run_Sql()
+        self.sql_met.sql_on(connection)
 
-    #@staticmethod
-    def write_sql_data(self, load_flags, stat_data, sql_cur, local_infile):
+    def write_sql_data(self, load_flags, stat_data):
         """ write stat files (MET and VSDB) to a SQL database.
             Returns:
                N/A
@@ -60,18 +60,18 @@ class WriteStatSql:
             stat_headers[CN.STAT_HEADER_ID] = CN.NO_KEY
 
             # get the next valid stat header id. Set it to zero (first valid id) if no records yet
-            next_header_id = self.sql_met.get_next_id(CN.STAT_HEADER, CN.STAT_HEADER_ID, sql_cur)
+            next_header_id = self.sql_met.get_next_id(CN.STAT_HEADER, CN.STAT_HEADER_ID)
 
             # if the flag is set to check for duplicate headers, get ids from existing headers
             if load_flags["stat_header_db_check"]:
 
                 # For each header, query with unique fields to try to find a match in the database
                 for row_num, data_line in stat_headers.iterrows():
-                    sql_cur.execute(CN.Q_HEADER, data_line.values[1:-1].tolist())
-                    result = sql_cur.fetchone()
+                    self.sql_met.cur.execute(CN.Q_HEADER, data_line.values[1:-1].tolist())
+                    result = self.sql_met.cur.fetchone()
 
                     # If you find a match, put the key into the stat_headers dataframe
-                    if sql_cur.rowcount > 0:
+                    if self.sql_met.cur.rowcount > 0:
                         stat_headers.loc[stat_headers.index[row_num], CN.STAT_HEADER_ID] = result[0]
                     else:
                         stat_headers.loc[stat_headers.index[row_num], CN.STAT_HEADER_ID] = \
@@ -88,7 +88,7 @@ class WriteStatSql:
             # Write any new headers out to the sql database
             if not new_headers.empty:
                 self.sql_met.write_to_sql(new_headers, CN.STAT_HEADER_FIELDS, CN.STAT_HEADER,
-                                     CN.INS_HEADER, sql_cur, local_infile)
+                                     CN.INS_HEADER)
 
             # put the header ids back into the dataframe of all the line data
             stat_data = pd.merge(left=stat_data, right=stat_headers, on=CN.STAT_HEADER_KEYS[1:])
@@ -126,7 +126,7 @@ class WriteStatSql:
                 if line_type in CN.VAR_LINE_TYPES:
                     # Get next valid line data id. Set it to zero (first valid id) if no records yet
                     next_line_id = \
-                        self.sql_met.get_next_id(line_table, CN.LINE_DATA_ID, sql_cur)
+                        self.sql_met.get_next_id(line_table, CN.LINE_DATA_ID)
                     logging.debug("next_line_id is %s", next_line_id)
 
                     # try to keep order the same as MVLoad
@@ -230,7 +230,7 @@ class WriteStatSql:
                             # Write out the ECNT lines created from old RHIST lines
                             self.sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.ECNT],
                                                  CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.ECNT)],
-                                                 CN.LINE_DATA_Q[CN.ECNT], sql_cur, local_infile)
+                                                 CN.LINE_DATA_Q[CN.ECNT])
 
                             # copy the value of n_rank two columns earlier for old RHIST
                             line_data.loc[line_data[CN.VERSION].isin(CN.RHIST_OLD), '1'] = \
@@ -239,14 +239,14 @@ class WriteStatSql:
                 # write the lines out to a CSV file, and then load them into database
                 if not line_data.empty:
                     self.sql_met.write_to_sql(line_data, CN.LINE_DATA_COLS[line_type], line_table,
-                                         CN.LINE_DATA_Q[line_type], sql_cur, local_infile)
+                                         CN.LINE_DATA_Q[line_type])
 
                 # if there are variable length records, write them out also
                 if not all_var.empty:
                     all_var.columns = CN.LINE_DATA_VAR_FIELDS[line_type]
                     self.sql_met.write_to_sql(all_var, CN.LINE_DATA_VAR_FIELDS[line_type],
                                          CN.LINE_DATA_VAR_TABLES[line_type],
-                                         CN.LINE_DATA_VAR_Q[line_type], sql_cur, local_infile)
+                                         CN.LINE_DATA_VAR_Q[line_type])
 
             # end for line_type
 
@@ -259,7 +259,7 @@ class WriteStatSql:
                     # Write out the PERC lines
                     self.sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.PERC],
                                          CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.PERC)],
-                                         CN.LINE_DATA_Q[CN.PERC], sql_cur, local_infile)
+                                         CN.LINE_DATA_Q[CN.PERC])
 
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in write_sql_data ***", sys.exc_info()[0])

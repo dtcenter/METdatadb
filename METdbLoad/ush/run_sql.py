@@ -32,16 +32,15 @@ class Sql_Worker(Process):
     These operations can be long lived and can also be concurrent so we do them in a process thread.
     """
 
-    def __init__(self, conn, raw_data, col_list, sql_table, sql_query, sql_cur, local_infile):
+    def __init__(self, sql_cur, raw_data, col_list, sql_table, sql_query, local_infile):
         # The Constructor for the RunCB class.
         Process.__init__(self)
         self.threadName = "worker-" + sql_table
-        self.conn = conn
+        self.sql_cur = sql_cur
         self.raw_data = raw_data
         self.col_list = col_list
         self.sql_table = sql_table
         self.sql_query = sql_query
-        self.sql_cur = sql_cur
         self.local_infile = local_infile
 
     def run(self):
@@ -134,18 +133,18 @@ class Run_Sql:
         self.local_infile = result[0][1]
         logging.debug("local_infile is %s", result[0][1])
 
-    def sql_off(self, conn, cur):
+    def sql_off(self):
         """ method to commit data and disconnect from a SQL database
             Returns:
                N/A
         """
 
-        conn.commit()
+        self.conn.commit()
 
-        cur.close()
-        conn.close()
+        self.cur.close()
+        self.conn.close()
 
-    def get_next_id(self, table, field, sql_cur):
+    def get_next_id(self, table, field):
         """ given a field for a table, find the max field value and return it plus one.
             Returns:
                next valid id to use in an id field in a table
@@ -154,8 +153,8 @@ class Run_Sql:
         try:
             next_id = 0
             query_for_id = "SELECT MAX(" + field + ") from " + table
-            sql_cur.execute(query_for_id)
-            result = sql_cur.fetchone()
+            self.cur.execute(query_for_id)
+            result = self.cur.fetchone()
             if result[0] is not None:
                 next_id = result[0] + 1
             return next_id
@@ -163,21 +162,21 @@ class Run_Sql:
         except (RuntimeError, TypeError, NameError, KeyError, AttributeError):
             logging.error("*** %s in write_sql_data get_next_id ***", sys.exc_info()[0])
 
-    def write_to_sql(self, raw_data, col_list, sql_table, sql_query, sql_cur, local_infile):
+    def write_to_sql(self, raw_data, col_list, sql_table, sql_query):
         """ given a dataframe of raw_data with specific columns to write to a sql_table,
             write to a csv file and use local data infile for speed if allowed.
             otherwise, do an executemany to use a SQL insert statement to write data
         """
 
         try:
-            worker = Sql_Worker(self.conn, raw_data, col_list, sql_table, sql_query, sql_cur, local_infile)
+            worker = Sql_Worker(self.cur, raw_data, col_list, sql_table, sql_query, self.local_infile)
             worker.start()
             worker.join()
         except:
             e = sys.exc_info()
             logging.error("*** %s Run_Sql error occurred in write_to_sql ***", e[0])
 
-    def apply_indexes(self, drop, sql_cur):
+    def apply_indexes(self, drop):
         """
         If user sets tag apply_indexes to true, try to create all indexes
         If user sets tag drop_indexes to true, try to drop all indexes
@@ -195,7 +194,7 @@ class Run_Sql:
                 logging.info("--- *** --- Loading Indexes --- *** ---")
 
             for sql_cmd in sql_array:
-                sql_cur.execute(sql_cmd)
+                self.cur.execute(sql_cmd)
 
         except pymysql.InternalError:
             if drop:

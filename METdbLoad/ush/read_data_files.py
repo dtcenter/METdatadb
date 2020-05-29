@@ -804,7 +804,6 @@ class ReadDataFiles:
                 logging.debug("Shape of all_stat after transforms: %s", str(all_stat.shape))
 
                 self.stat_data = all_stat
-                all_stat = all_stat.iloc[0:0]
 
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in read_data near end ***", sys.exc_info()[0])
