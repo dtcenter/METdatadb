@@ -34,6 +34,7 @@ from write_file_sql import WriteFileSql
 from write_stat_sql import WriteStatSql
 from write_mode_sql import WriteModeSql
 
+
 def main():
     """ Main program to load files into the METdb/METviewer database
         Returns:
@@ -153,7 +154,7 @@ def main():
         try:
 
             # instantiate a read data files object
-            #clean the dataframes in the ReadDataFiles object
+            # clean the dataframes in the ReadDataFiles object
             file_data.clean()
 
             # read in the data files, with options specified by XML flags
@@ -195,12 +196,9 @@ def main():
                     first_file, mid_file, last_file = next_set(first_file, mid_file, last_file)
 
                 if not file_data.stat_data.empty:
-
-
                     stat_lines.write_sql_data(xml_loadfile.flags, file_data.stat_data)
 
                 if (not file_data.mode_cts_data.empty) or not (file_data.mode_obj_data.empty):
-
                     cts_lines.write_mode_data(xml_loadfile.flags,
                                               file_data.mode_cts_data,
                                               file_data.mode_obj_data)
@@ -241,6 +239,7 @@ def main():
     logging.info("End time: %s", str(datetime.now()))
     logging.info("--- *** --- End METdbLoad --- *** ---")
 
+
 def next_set(first_file, mid_file, last_file):
     """ move indices to next set of files
         Returns:
@@ -254,6 +253,7 @@ def next_set(first_file, mid_file, last_file):
         if mid_file > last_file:
             mid_file = last_file
     return first_file, mid_file, last_file
+
 
 def purge_files(load_files, xml_flags):
     """ remove any files from load list that user has disallowed in XML tags

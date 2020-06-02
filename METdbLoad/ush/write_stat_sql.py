@@ -26,11 +26,13 @@ import constants as CN
 
 from run_sql import Run_Sql
 
+
 class WriteStatSql:
     """ Class to write stat files (MET and VSDB) to a SQL database
         Returns:
            N/A
     """
+
     def __init__(self, connection):
         self.sql_met = Run_Sql()
         self.sql_met.sql_on(connection)
@@ -75,7 +77,7 @@ class WriteStatSql:
                         stat_headers.loc[stat_headers.index[row_num], CN.STAT_HEADER_ID] = result[0]
                     else:
                         stat_headers.loc[stat_headers.index[row_num], CN.STAT_HEADER_ID] = \
-                        row_num + next_header_id
+                            row_num + next_header_id
             else:
                 # When all new headers, add the next id to the row number/index to make a new key
                 stat_headers.loc[stat_headers.stat_header_id == CN.NO_KEY, CN.STAT_HEADER_ID] = \
@@ -88,7 +90,7 @@ class WriteStatSql:
             # Write any new headers out to the sql database
             if not new_headers.empty:
                 self.sql_met.write_to_sql(new_headers, CN.STAT_HEADER_FIELDS, CN.STAT_HEADER,
-                                     CN.INS_HEADER)
+                                          CN.INS_HEADER)
 
             # put the header ids back into the dataframe of all the line data
             stat_data = pd.merge(left=stat_data, right=stat_headers, on=CN.STAT_HEADER_KEYS[1:])
@@ -223,30 +225,30 @@ class WriteStatSql:
 
                             # put the fields in the correct order for ECNT
                             line_data2 = \
-                                line_data2.rename(columns={'1':'2', '2':'4',
-                                                           '3':'1', '4':'3',
-                                                           '5':'7', '7':'5'})
+                                line_data2.rename(columns={'1': '2', '2': '4',
+                                                           '3': '1', '4': '3',
+                                                           '5': '7', '7': '5'})
 
                             # Write out the ECNT lines created from old RHIST lines
                             self.sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.ECNT],
-                                                 CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.ECNT)],
-                                                 CN.LINE_DATA_Q[CN.ECNT])
+                                                      CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.ECNT)],
+                                                      CN.LINE_DATA_Q[CN.ECNT])
 
                             # copy the value of n_rank two columns earlier for old RHIST
                             line_data.loc[line_data[CN.VERSION].isin(CN.RHIST_OLD), '1'] = \
-                                        line_data['3']
+                                line_data['3']
 
                 # write the lines out to a CSV file, and then load them into database
                 if not line_data.empty:
                     self.sql_met.write_to_sql(line_data, CN.LINE_DATA_COLS[line_type], line_table,
-                                         CN.LINE_DATA_Q[line_type])
+                                              CN.LINE_DATA_Q[line_type])
 
                 # if there are variable length records, write them out also
                 if not all_var.empty:
                     all_var.columns = CN.LINE_DATA_VAR_FIELDS[line_type]
                     self.sql_met.write_to_sql(all_var, CN.LINE_DATA_VAR_FIELDS[line_type],
-                                         CN.LINE_DATA_VAR_TABLES[line_type],
-                                         CN.LINE_DATA_VAR_Q[line_type])
+                                              CN.LINE_DATA_VAR_TABLES[line_type],
+                                              CN.LINE_DATA_VAR_Q[line_type])
 
             # end for line_type
 
@@ -258,8 +260,8 @@ class WriteStatSql:
 
                     # Write out the PERC lines
                     self.sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.PERC],
-                                         CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.PERC)],
-                                         CN.LINE_DATA_Q[CN.PERC])
+                                              CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.PERC)],
+                                              CN.LINE_DATA_Q[CN.PERC])
 
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in write_sql_data ***", sys.exc_info()[0])
