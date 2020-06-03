@@ -602,11 +602,24 @@ class ReadDataFiles:
                                              [CN.LINE_NUM, CN.FILE_ROW]]
 
                     elif vsdb_type == CN.ECLV:
-                        n_var = 18
+                        n_var = vsdb_data.loc[0, CN.N_VAR]
+                        # first data column
                         zero_col = vsdb_data.columns.get_loc('0')
+                        # new last data column after data is doubled
                         last_col = zero_col + (n_var * 2) - 1
+                        # current last data column
                         mid_col = zero_col + n_var - 1
+                        # counter for constants that will be added to double the data
                         last_point = n_var - 1
+                        n_var_col = vsdb_data.columns.get_loc(CN.N_VAR)
+                        top_col = int(vsdb_data.columns[n_var_col - 1])
+                        # add extra columns to vsdb_data if needed for doubling of columns
+                        if top_col < last_col:
+                            vsdb_data = \
+                                vsdb_data.reindex(columns=[*vsdb_data.columns.tolist()[0:n_var_col],
+                                                           *CN.COL_NUMS[top_col + 1: last_col + 1],
+                                                           *vsdb_data.columns.tolist()[n_var_col:]],
+                                                  fill_value=CN.MV_NOTAV)
                         for i in range(n_var):
                             vsdb_data.iloc[:, last_col] = vsdb_data.iloc[:, mid_col]
                             vsdb_data.iloc[:, last_col - 1] = CN.X_POINTS_ECON[last_point]
@@ -684,6 +697,7 @@ class ReadDataFiles:
                                            CN.COL_NUMS[:96] + [CN.LINE_NUM, CN.FILE_ROW]
                         list_vsdb.append(one_file)
                         one_file = one_file.iloc[0:0]
+                        vsdb_data = vsdb_data.iloc[0:0]
 
                 # end for vsdb_type
 
@@ -804,6 +818,7 @@ class ReadDataFiles:
                 logging.debug("Shape of all_stat after transforms: %s", str(all_stat.shape))
 
                 self.stat_data = all_stat
+                all_stat = all_stat.iloc[0:0]
 
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in read_data near end ***", sys.exc_info()[0])

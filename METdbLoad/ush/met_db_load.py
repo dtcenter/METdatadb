@@ -34,7 +34,6 @@ from write_file_sql import WriteFileSql
 from write_stat_sql import WriteStatSql
 from write_mode_sql import WriteModeSql
 
-
 def main():
     """ Main program to load files into the METdb/METviewer database
         Returns:

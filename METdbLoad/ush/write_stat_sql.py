@@ -225,14 +225,15 @@ class WriteStatSql:
 
                             # put the fields in the correct order for ECNT
                             line_data2 = \
-                                line_data2.rename(columns={'1': '2', '2': '4',
-                                                           '3': '1', '4': '3',
-                                                           '5': '7', '7': '5'})
+                                line_data2.rename(columns={'1':'2', '2':'4',
+                                                           '3':'1', '4':'3',
+                                                           '5':'7', '7':'5'})
 
                             # Write out the ECNT lines created from old RHIST lines
                             self.sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.ECNT],
                                                       CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.ECNT)],
                                                       CN.LINE_DATA_Q[CN.ECNT])
+                            line_data2 = line_data2.iloc[0:0]
 
                             # copy the value of n_rank two columns earlier for old RHIST
                             line_data.loc[line_data[CN.VERSION].isin(CN.RHIST_OLD), '1'] = \
@@ -242,6 +243,7 @@ class WriteStatSql:
                 if not line_data.empty:
                     self.sql_met.write_to_sql(line_data, CN.LINE_DATA_COLS[line_type], line_table,
                                               CN.LINE_DATA_Q[line_type])
+                    line_data = line_data.iloc[0:0]
 
                 # if there are variable length records, write them out also
                 if not all_var.empty:
@@ -249,6 +251,7 @@ class WriteStatSql:
                     self.sql_met.write_to_sql(all_var, CN.LINE_DATA_VAR_FIELDS[line_type],
                                               CN.LINE_DATA_VAR_TABLES[line_type],
                                               CN.LINE_DATA_VAR_Q[line_type])
+                    all_var = all_var.iloc[0:0]
 
             # end for line_type
 
@@ -262,6 +265,7 @@ class WriteStatSql:
                     self.sql_met.write_to_sql(line_data2, CN.LINE_DATA_COLS[CN.PERC],
                                               CN.LINE_TABLES[CN.UC_LINE_TYPES.index(CN.PERC)],
                                               CN.LINE_DATA_Q[CN.PERC])
+                    line_data2 = line_data2.iloc[0:0]
 
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in write_sql_data ***", sys.exc_info()[0])

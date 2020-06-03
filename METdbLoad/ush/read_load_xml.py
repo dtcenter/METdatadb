@@ -19,6 +19,7 @@ import sys
 import os
 from pathlib import Path
 import logging
+import pandas as pd
 from lxml import etree
 
 import constants as CN
@@ -93,6 +94,7 @@ class XmlLoadFile:
 
         folder_template = None
         template_fills = {}
+        date_list = {}
 
         try:
             # extract values from load_spec XML tags, store in attributes of class XmlLoadFile
@@ -130,8 +132,22 @@ class XmlLoadFile:
                         template_key = subchild.get("name")
                         template_values = []
                         for template_value in list(subchild):
-                            template_values.append(template_value.text)
+                            if template_value.tag.lower() == "val":
+                                template_values.append(template_value.text)
+                            elif template_value.tag.lower() == "date_list":
+                                template_values.append(template_value.get("name"))
                         template_fills[template_key] = template_values
+                elif child.tag.lower() == "date_list":
+                    date_list["name"] = child.get("name")
+                    for subchild in list(child):
+                        if subchild.tag.lower() == "start":
+                            date_list["start"] = subchild.text
+                        elif subchild.tag.lower() == "end":
+                            date_list["end"] = subchild.text
+                        elif subchild.tag.lower() == "inc":
+                            date_list["inc"] = subchild.text
+                        elif subchild.tag.lower() == "format":
+                            date_list["format"] = subchild.text
                 elif child.tag.lower() == "verbose":
                     if child.text.lower() == CN.LC_TRUE:
                         self.flags['verbose'] = True
@@ -200,8 +216,20 @@ class XmlLoadFile:
 
         logging.debug("db_name is: %s", self.connection['db_name'])
 
-        # generate all possible path/filenames from folder template
+        # if the date_list tag is included, generate a list of dates
+        if "start" in date_list.keys() and "end" in date_list.keys():
+            all_dates = self.filenames_from_date(date_list)
+        else:
+            all_dates = []
+
+        # if the folder template tag is used
         if folder_template is not None:
+            # if the date_list tag was used correctly, put the dates in
+            if all_dates:
+                for t_fill in template_fills:
+                    if template_fills[t_fill][0] == date_list["name"]:
+                        template_fills[t_fill] = all_dates
+            # Generate all possible path/filenames from folder template
             self.load_files = self.filenames_from_template(folder_template, template_fills)
 
         # this removes duplicate file names. do we want that?
@@ -215,6 +243,42 @@ class XmlLoadFile:
 
         logging.debug("[--- End read_xml ---]")
 
+    @staticmethod
+    def filenames_from_date(date_list):
+        """! given date format, start and end dates, and increment, generates list of dates
+            Returns:
+               list of dates
+        """
+        logging.debug("date format is: %s", date_list["format"])
+
+        try:
+            date_format = date_list["format"]
+            # check to make sure that the date format string only has known characters
+            if set(date_format) <= CN.DATE_CHARS:
+                # Change the java formatting string to a Python formatting string
+                for java_date, python_date in CN.DATE_SUBS.items():
+                    date_format = date_format.replace(java_date, python_date)
+                # format the start and end dates
+                date_start = pd.to_datetime(date_list["start"], format=date_format)
+                date_end = pd.to_datetime(date_list["end"], format=date_format)
+                date_inc = int(date_list["inc"])
+                all_dates = []
+                while date_start < date_end:
+                    all_dates.append(date_start.strftime(date_format))
+                    date_start = date_start + pd.Timedelta(seconds=date_inc)
+                all_dates.append(date_end.strftime(date_format))
+            else:
+                logging.error("*** date_list tag has unknown characters ***")
+
+        except ValueError as value_error:
+            logging.error("*** %s in filenames_from_date ***", sys.exc_info()[0])
+            logging.error(value_error)
+            sys.exit("*** Value Error found while expanding XML date format!")
+        except (RuntimeError, TypeError, NameError, KeyError):
+            logging.error("*** %s in filenames_from_date ***", sys.exc_info()[0])
+            sys.exit("*** Error found while expanding XML date format!")
+
+        return all_dates
 
     @staticmethod
     def filenames_from_template(folder_template, template_fills):

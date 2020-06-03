@@ -121,6 +121,7 @@ class WriteModeSql:
 
                 self.sql_mode.write_to_sql(cts_data, CN.MODE_CTS_FIELDS, CN.MODE_CTS_T,
                                            CN.INS_CHEADER)
+                cts_data = cts_data.iloc[0:0]
 
             if not obj_data.empty:
                 # MET has a different column name than METviewer
@@ -205,6 +206,8 @@ class WriteModeSql:
                                     on=[CN.MODE_HEADER_ID, CN.O_OBJECT_ID])
                 all_pair.rename(columns={CN.MODE_OBJ_ID: CN.MODE_OBJ_OBS_ID}, inplace=True)
 
+                obj_data = obj_data.iloc[0:0]
+
                 all_pair[CN.SIMPLE_FLAG] = 1
                 # Set simple flag to zero if object id starts with C
                 if all_pair.f_object_id.str.startswith('C').any() and \
@@ -224,6 +227,7 @@ class WriteModeSql:
                 # write out the mode pair objects
                 self.sql_mode.write_to_sql(all_pair, CN.MODE_PAIR_FIELDS, CN.MODE_PAIR_T,
                                            CN.INS_PHEADER)
+                all_pair = all_pair.iloc[0:0]
 
         except (RuntimeError, TypeError, NameError, KeyError):
             logging.error("*** %s in write_mode_sql ***", sys.exc_info()[0])
