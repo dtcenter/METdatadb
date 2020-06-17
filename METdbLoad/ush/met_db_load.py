@@ -177,6 +177,11 @@ def main():
         try:
 
             if xml_loadfile.connection['db_management_system'] in CN.RELATIONAL:
+                if set_count == 1:
+                    #  if drop_indexes is set to true, drop the indexes
+                    if xml_loadfile.flags["drop_indexes"]:
+                        sql_run.apply_indexes(True)
+
                 # write the data file records out. put data file ids into other dataframes
                 updated_data = write_file.write_file_sql(xml_loadfile.flags,
                                                          file_data.data_files,
@@ -215,8 +220,7 @@ def main():
 
                     #  if apply_indexes is set to true, load the indexes
                     if xml_loadfile.flags["apply_indexes"]:
-                        sql_run.apply_indexes(False)
-
+                          sql_run.apply_indexes(False)
                     if sql_run.conn.open:
                         sql_run.sql_off()
 

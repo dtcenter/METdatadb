@@ -98,21 +98,22 @@ class Run_Sql:
         self.local_infile = False
         self.conn = None
         self.cur = None
+        self.xml_connection = None
 
     def sql_on(self, connection):
         """ method to connect to a SQL database
             Returns:
                N/A
         """
-
+        self.xmlConnection = connection
         try:
 
         # Connect to the database using connection info from XML file
-            self.conn = pymysql.connect(host=connection['db_host'],
-                                        port=connection['db_port'],
-                                        user=connection['db_user'],
-                                        passwd=connection['db_password'],
-                                        db=connection['db_name'],
+            self.conn = pymysql.connect(host=self.xmlConnection['db_host'],
+                                        port=self.xmlConnection['db_port'],
+                                        user=self.xmlConnection['db_user'],
+                                        passwd=self.xmlConnection['db_password'],
+                                        db=self.xmlConnection['db_name'],
                                         local_infile=True)
 
         except pymysql.OperationalError as pop_err:
@@ -192,7 +193,14 @@ class Run_Sql:
             else:
                 sql_array = CN.CREATE_INDEXES_QUERIES
                 logging.info("--- *** --- Loading Indexes --- *** ---")
-
+            if not self.conn.open:
+                self.conn = pymysql.connect(host=self.xmlConnection['db_host'],
+                                            port=self.xmlConnection['db_port'],
+                                            user=self.xmlConnection['db_user'],
+                                            passwd=self.xmlConnection['db_password'],
+                                            db=self.xmlConnection['db_name'],
+                                            local_infile=True)
+                self.cur = self.conn.cursor()
             for sql_cmd in sql_array:
                 self.cur.execute(sql_cmd)
 
@@ -201,6 +209,10 @@ class Run_Sql:
                 logging.error("*** Index to drop does not exist in run_sql apply_indexes ***")
             else:
                 logging.error("*** Index to add already exists in run_sql apply_indexes ***")
+        finally:
+            self.conn.commit()
+            self.cur.close()
+            self.conn.close()
 
         apply_time_end = time.perf_counter()
         apply_time = timedelta(seconds=apply_time_end - apply_time_start)
