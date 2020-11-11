@@ -1,5 +1,5 @@
 """
-Program Name: main script for Data_Type_Manager
+Program Name: main script for DataTypeManager
 Contact(s): Randy Pierce
 Abstract:
 
@@ -8,7 +8,7 @@ History Log:  Initial version
 Usage: This script process arguments which define a Metviewer xml_load_spec, a thread count, and a number
 of other mvload related parameters.
 The script maintains a thread pool of Data_Managers, and a queue of filenames that is derived from the load_spec.xml input.
-The number of threads in the thread pool is set to the -t n (or --threads n) argument, where n is the number of threads to start. The fileName list
+The number of threads in the thread pool is set to the -t n (or --threads n) argument, where n is the number of threads to start. The file_name list
 is unlimited.
 For the moment this script can only process a couchbase (cb) type management_system. This means that the tag
 "<connection>
@@ -25,7 +25,7 @@ from datetime import datetime
 from datetime import timedelta
 from multiprocessing import JoinableQueue
 
-from data_type_manager import Data_Type_Manager
+from data_type_manager import DataTypeManager
 from read_load_xml import XmlLoadFile
 
 
@@ -94,9 +94,9 @@ def main():
     _dtm_list = []
     for _threadCount in range(thread_limit):
         try:
-            dtmThread = Data_Type_Manager("Data_Type_Manager-" + str(_threadCount), xml_loadfile.connection, q)
-            _dtm_list.append(dtmThread)
-            dtmThread.start()
+            dtm_thread = DataTypeManager("DataTypeManager-" + str(_threadCount), xml_loadfile.connection, q)
+            _dtm_list.append(dtm_thread)
+            dtm_thread.start()
         except:
             e = sys.exc_info()
             logging.error("*** %s occurred in purge_files ***", e[0])

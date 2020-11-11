@@ -1,5 +1,5 @@
 """
-Program Name: Class Data_Type_Manager.py
+Program Name: Class DataTypeManager.py
 Contact(s): Randy Pierce
 Abstract:
 
@@ -13,11 +13,11 @@ However Python also has multiprocessing which can be used if the memory footprin
 This program uses multiprocessing which essentially uses an entire interpreter for each thread, thus avoiding the GIL.
 Because of this the couchbase SDK recommends that a different bucket is used for each multiprocess thread and they are very
 sure to point out that if you do not honor this your program WILL HAVE UNEXPECTED ERRORS! So if you modify this thread relationship
-between the main program and the Data_Type_Manager be very very careful.
+between the main program and the DataTypeManager be very very careful.
 Observations have shown that two or four threads help reduce the execution time of the program significantly. More than that does not.
 I would have left out threading all-together but someday we may decide to port this to a truly thread capable language.
 
-Usage: The Data_Type_Manager extends Process - python multiprocess thread - and runs as a Process and pulls from a queue of file names.
+Usage: The DataTypeManager extends Process - python multiprocess thread - and runs as a Process and pulls from a queue of file names.
 It maintains its own connection to the database which it keeps open until it finishes.
 It finishes and closes its database connection when the queue is empty.
 It gets filenames serially from a queue that is shared by a thread pool of data_type_manager's and processes them one at a time.
@@ -33,7 +33,7 @@ The records at the level of document_map[data_type][id] represent a couchbase do
         Attributes:
             queue - a queue of filenames that are MET files.
             threadName - a threadName for logging and debugging purposes.
-            connection_credentials - a set of connection_credentials that the Data_Type_Manager will use to connect to the database. This
+            connection_credentials - a set of connection_credentials that the DataTypeManager will use to connect to the database. This
             connection will be maintained until the thread terminates.
 Copyright 2019 UCAR/NCAR/RAL, CSU/CIRES, Regents of the University of Colorado, NOAA/OAR/ESRL/GSD
 """
@@ -44,15 +44,15 @@ import time
 from multiprocessing import Process
 import queue
 
-from couchbase.cluster import Cluster
-from couchbase.cluster import PasswordAuthenticator
+from couchbase.cluster import Cluster, ClusterOptions
+from couchbase_core.cluster import PasswordAuthenticator
 
 import data_type_builder as DTB
 
 
-class Data_Type_Manager(Process):
+class DataTypeManager(Process):
     """
-    Data_Type_Manager is a Thread that manages an object pool of Data_Type_builders to build lines from MET files
+    DataTypeManager is a Thread that manages an object pool of Data_Type_builders to build lines from MET files
     into documents that can be inserted into couchbase.
     This class will process files by collecting filenames - one at a time - from a filename
     queue. For each filename it will read the file line by line and process each line.
@@ -73,34 +73,37 @@ class Data_Type_Manager(Process):
 
         self.builder_map = {}
         self.document_map = {}
+        self.database_name = ""
 
     # entry point of the thread. Is invoked automatically when the thread is started.
     def run(self):
         """
-        This is the entry point for the Data_Type_Manager thread. It runs an infinite loop that only
-        terminates when the fileName queue is empty. For each fileName it calls process_file with the fileName
+        This is the entry point for the DataTypeManager thread. It runs an infinite loop that only
+        terminates when the file_name queue is empty. For each file_name it calls process_file with the file_name
         to process the file.
         """
         try:
             logging.info('data_type_manager - Connecting to couchbase')
-            cluster = Cluster('couchbase://' + self.connection_credentials['db_host'])
-            authenticator = PasswordAuthenticator(self.connection_credentials['db_user'],
-                                                  self.connection_credentials['db_password'])
-            cluster.authenticate(authenticator)
+
+            # get a reference to our cluster
+            cluster = Cluster('couchbase://' + self.connection_credentials['db_host'], ClusterOptions(
+                PasswordAuthenticator(self.connection_credentials['db_user'], self.connection_credentials['db_password'])))
             self.database_name = self.connection_credentials['db_name']
-            bucket = cluster.open_bucket('mdata')
+            collection = cluster.bucket("mdata").default_collection()
+
             # infinite loop terminates when the queue is empty
             empty_count=0
             while True:
                 try:
-                    fileName = self.queue.get_nowait()
-                    self.process_file(fileName, bucket)
+                    file_name = self.queue.get_nowait()
+                    self.process_file(file_name, collection)
                     self.queue.task_done()
                     empty_count = 0
                 except queue.Empty:
                     if empty_count < 3:
                         empty_count += 1
-                        logging.info('data_type_manager - got Queue.Empty - retrying: ' + str(empty_count) + " of 3 times")
+                        logging.info('data_type_manager - got Queue.Empty - retrying: ' + str(empty_count) +
+                                     " of 3 times")
                         time.sleep(1)
                         continue
                     else:
@@ -111,36 +114,38 @@ class Data_Type_Manager(Process):
             logging.info('data_type_manager - disconnecting couchbase')
 
     # process a file line by line
-    def process_file(self, fileName, bucket):
+    def process_file(self, file_name, collection):
         self.document_map = {}
-        file_extension = fileName.split('.')[-1]
-        file = open(fileName, 'r')
+        file_extension = file_name.split('.')[-1]
+        file = open(file_name, 'r')
         for line in file:
             # derive the data_type
             line_parts = line.split()
             line_type = line_parts[6]
             version = line_parts[0]
             data_type = file_extension.upper() + '_' + version.upper() + '_' + line_type.upper()
-            dataTypeBuilderName = data_type + "_builder"
+            data_type_builder_name = data_type + "_builder"
             # get or instantiate the builder
             try:
-                if (dataTypeBuilderName in self.builder_map.keys()):
-                    builder = self.builder_map[dataTypeBuilderName]
+                if data_type_builder_name in self.builder_map.keys():
+                    builder = self.builder_map[data_type_builder_name]
                 else:
-                    builderClass = getattr(DTB, dataTypeBuilderName)
-                    builder = builderClass()
+                    builder_class = getattr(DTB, data_type_builder_name)
+                    builder = builder_class()
                 # process the line
                 builder.handle_line(data_type, line, self.document_map, self.database_name)
             except:
                 e = sys.exc_info()[0]
-                logging.error("Exception instantiating builder: " + dataTypeBuilderName + " error: " + e)
+                logging.error("Exception instantiating builder: " + data_type_builder_name + " error: " + e)
         # all the lines are now processed for this file so write all the documents in the document_map
         try:
             logging.info(
-                'data_type_manager writing documents for file :  ' + fileName + " threadName: " + self.threadName)
+                'data_type_manager writing documents for file :  ' + file_name + " threadName: " + self.threadName)
             for key in self.document_map.keys():
                 try:
-                    bucket.upsert_multi(self.document_map[key])
+                    # this call is volatile i.e. it might change syntax in the future.
+                    # if it does, please just fix it.
+                    collection.upsert_multi(self.document_map[key])
                 except:
                     e = sys.exc_info()[0]
                     logging.error("*** %s Error multi-upsert to Couchbase: in data_type_manager ***", str(e))
