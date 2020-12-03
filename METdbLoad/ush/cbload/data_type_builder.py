@@ -111,7 +111,7 @@ class DataTypeBuilder(ABC):
         record_fields = ' '.join(re.split("\s|=", line)).split()
         i = 0
         while i <= len(document_fields) - 1:
-            try:  # index of record might be out of range since VSDB files often do have the last field
+            try:  # index of record might be out of range since VSDB files often don't have the last field
                 _record[document_fields[i]] = record_fields[i]
             except:
                 _record[document_fields[i]] = None

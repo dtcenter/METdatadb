@@ -84,15 +84,19 @@ class DataTypeManager(Process):
         """
         try:
             logging.info('data_type_manager - Connecting to couchbase')
-
             # get a reference to our cluster
-            cluster = Cluster('couchbase://' + self.connection_credentials['db_host'], ClusterOptions(
-                PasswordAuthenticator(self.connection_credentials['db_user'], self.connection_credentials['db_password'])))
+            # derive the path to the public certificate for the host
+            # NOTE this assumes that the public cert for the database host (which is probably a cluster)
+            # has previously been put in /certs/hostname/hostname.pem
+            cluster = Cluster('couchbases://' + self.connection_credentials['db_host'], ClusterOptions(
+                PasswordAuthenticator(self.connection_credentials['db_user'],
+                                      self.connection_credentials['db_password'],
+                                      cert_path="/certs/adb-cb4.gsd.esrl.noaa.gov/adb-cb4.gsd.esrl.noaa.gov.pem")))
             self.database_name = self.connection_credentials['db_name']
             collection = cluster.bucket("mdata").default_collection()
 
             # infinite loop terminates when the queue is empty
-            empty_count=0
+            empty_count = 0
             while True:
                 try:
                     file_name = self.queue.get_nowait()
@@ -132,6 +136,7 @@ class DataTypeManager(Process):
                 else:
                     builder_class = getattr(DTB, data_type_builder_name)
                     builder = builder_class()
+                    self.builder_map[data_type_builder_name] = builder
                 # process the line
                 builder.handle_line(data_type, line, self.document_map, self.database_name)
             except:
