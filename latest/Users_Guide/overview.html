@@ -1,0 +1,362 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>1. Overview &mdash; METdatadb develop documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="../_static/theme_override.css" type="text/css" />
+  
+
+  
+        <link rel="index" title="Index"
+              href="../genindex.html"/>
+        <link rel="search" title="Search" href="../search.html"/>
+    <link rel="top" title="METdatadb develop documentation" href="../index.html"/>
+        <link rel="up" title="User’s Guide" href="index.html"/>
+        <link rel="next" title="2. Software Installation/Getting Started" href="installation.html"/>
+        <link rel="prev" title="User’s Guide" href="index.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> METdatadb
+          
+
+          
+            
+            <img src="../_static/met_datadb_logo_2020_06.png" class="logo" />
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                
+                  develop
+                
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">METdatadb</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">User’s Guide</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">1. Overview</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#purpose-and-organization-of-the-user-s-guide">1.1. Purpose and organization of the User’s Guide</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-developmental-testbed-center-dtc">1.2. The Developmental Testbed Center (DTC)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#metdatadb-goals-and-design-philosophy">1.3. METdatadb goals and design philosophy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#metdatadb-requirements">1.4. METdatadb Requirements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#metdatadb-release-notes">1.5. METdatadb release notes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#version-version-release-notes-release-date">1.5.1. Version develop release notes (2021-03-31)</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#future-development-plans">1.6. Future development plans</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#code-support">1.7. Code support</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html">2. Software Installation/Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="common.html">3. Common XML Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="load_data.html">4. Load Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#indices-and-tables">Indices and tables</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">METdatadb</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="index.html">User’s Guide</a> &raquo;</li>
+        
+      <li><span class="section-number">1. </span>Overview</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/Users_Guide/overview.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="overview">
+<h1><span class="section-number">1. </span>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="purpose-and-organization-of-the-user-s-guide">
+<h2><span class="section-number">1.1. </span>Purpose and organization of the User’s Guide<a class="headerlink" href="#purpose-and-organization-of-the-user-s-guide" title="Permalink to this headline">¶</a></h2>
+<p>The goal of this User’s Guide is to provide basic information for users of the
+METdatadb database and the METviewer and METexpress display systems to enable
+users to create plots from their MET output statistics.</p>
+<p>The METdatadb User’s Guide is organized as follows.  Currently, the METdatadb
+User’s Guide only contains information about METdbload, a utility of
+METdatadb.  Eventually, there will be utilities to add and delete databases,
+delete duplicate records, etc.</p>
+</div>
+<div class="section" id="the-developmental-testbed-center-dtc">
+<h2><span class="section-number">1.2. </span>The Developmental Testbed Center (DTC)<a class="headerlink" href="#the-developmental-testbed-center-dtc" title="Permalink to this headline">¶</a></h2>
+<p>METdatadb has been developed, and will be maintained and enhanced, by the
+Developmental Testbed Center (DTC; <a class="reference external" href="http://www.dtcenter.org/">http://www.dtcenter.org/</a> ).
+The main goal of the DTC is to serve as a bridge between operations and
+research, to facilitate the activities of these two important components of
+the numerical weather prediction (NWP) community. The DTC provides an
+environment that is functionally equivalent to the operational environment
+in which the research community can test model enhancements; the operational
+community benefits from DTC testing and evaluation of models before new models
+are implemented operationally. METdatadb serves both the research and
+operational communities in this way - offering capabilities for researchers
+to test their own enhancements to models and providing a capability for
+the DTC to evaluate the strengths and weaknesses of advances in NWP
+prior to operational implementation.</p>
+<p>METdatadb will also be available to DTC visitors and to the modeling community
+for testing and evaluation of new model capabilities, applications in new
+environments, and so on.</p>
+</div>
+<div class="section" id="metdatadb-goals-and-design-philosophy">
+<h2><span class="section-number">1.3. </span>METdatadb goals and design philosophy<a class="headerlink" href="#metdatadb-goals-and-design-philosophy" title="Permalink to this headline">¶</a></h2>
+<p>METdatadb is a Python rewrite of the capabilities in METviewer. METdbload,
+a METdatadb utility, reads MET verification statistics ASCII files,
+and loads them into a database for plotting with METviewer and METexpress.
+The specification for which files to load is written in XML.</p>
+<p>The METdatadb code and documentation is maintained by the DTC in Boulder,
+Colorado. The MET package is freely available to the modeling, verification,
+and operational communities, including universities, governments,
+the private sector, and operational modeling and prediction centers.</p>
+</div>
+<div class="section" id="metdatadb-requirements">
+<h2><span class="section-number">1.4. </span>METdatadb Requirements<a class="headerlink" href="#metdatadb-requirements" title="Permalink to this headline">¶</a></h2>
+<p>METdatadb requires installation of Python 3.6+ and MySQL, MariaDB or AuroraDB.</p>
+</div>
+<div class="section" id="metdatadb-release-notes">
+<span id="release-notes"></span><h2><span class="section-number">1.5. </span>METdatadb release notes<a class="headerlink" href="#metdatadb-release-notes" title="Permalink to this headline">¶</a></h2>
+<p>When applicable, release notes are followed by the GitHub issue number which
+describes the bugfix, enhancement, or new feature:
+<a class="reference external" href="https://github.com/dtcenter/METdatadb/issues">METdatadb GitHub issues.</a></p>
+<div class="section" id="version-version-release-notes-release-date">
+<h3><span class="section-number">1.5.1. </span>Version develop release notes (2021-03-31)<a class="headerlink" href="#version-version-release-notes-release-date" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="version-1-0-0-beta5-release-notes-20210308">
+<h4><span class="section-number">1.5.1.1. </span>Version <a class="reference external" href="https://github.com/dtcenter/METdatadb/projects/4">1.0.0-beta5</a> release notes (20210308)<a class="headerlink" href="#version-1-0-0-beta5-release-notes-20210308" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><p>Bugfixes:</p>
+<ul>
+<li></li>
+<li></li>
+</ul>
+</li>
+<li><p>New Functionality:</p>
+<ul>
+<li></li>
+<li></li>
+</ul>
+</li>
+<li><p>Enhancements:</p>
+<ul>
+<li></li>
+<li></li>
+</ul>
+</li>
+<li><p>Internal:</p>
+<ul>
+<li></li>
+<li></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="future-development-plans">
+<h2><span class="section-number">1.6. </span>Future development plans<a class="headerlink" href="#future-development-plans" title="Permalink to this headline">¶</a></h2>
+<p>METdatadb is an evolving verification database package. New capabilities are
+planned in controlled, successive version releases. Bug fixes and
+user-identified problems will be addressed as they are found. Plans are also
+in place to incorporate many new capabilities and options in future releases
+of METdatadb. Additionally, updates to accommodate new features of the MET
+software are often required.</p>
+</div>
+<div class="section" id="code-support">
+<h2><span class="section-number">1.7. </span>Code support<a class="headerlink" href="#code-support" title="Permalink to this headline">¶</a></h2>
+<p>Support for METdatadb is provided through a MET-help e-mail address:
+<a class="reference external" href="mailto:met_help&#37;&#52;&#48;ucar&#46;edu">met_help<span>&#64;</span>ucar<span>&#46;</span>edu</a>. We will endeavor to respond to requests for help in a
+timely fashion.</p>
+<p>We welcome comments and suggestions for improvements to METdatadb, especially
+information regarding errors. In addition, comments on this document would be
+greatly appreciated. While we cannot promise to incorporate all suggested
+changes, we will certainly take all suggestions into consideration.</p>
+<p>METdatadb is a “living” application. Our goal is to continually enhance it and
+add to its capabilities.</p>
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="installation.html" class="btn btn-neutral float-right" title="2. Software Installation/Getting Started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral" title="User’s Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2021, UCAR/NCAR, NOAA, CSU/CIRA, and CU/CIRES.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+    
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
